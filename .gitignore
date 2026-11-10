@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .pytest-tmp/
 logs/
+gcm-diagnose.log
 brand_logos_preview.png
 
 # ETS2 and other third-party image assets stay out of the public repository.
