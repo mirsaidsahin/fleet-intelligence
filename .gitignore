@@ -1,0 +1,18 @@
+# Secrets and local state
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.pytest-tmp/
+logs/
+brand_logos_preview.png
+
+# ETS2 and other third-party image assets stay out of the public repository.
+# Only the folder markers are tracked; drop your own files in locally.
+assets/drivers/*
+!assets/drivers/.gitkeep
+assets/brands/*
+!assets/brands/.gitkeep
+assets/trucks/*
+!assets/trucks/.gitkeep
