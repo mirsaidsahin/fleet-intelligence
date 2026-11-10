@@ -10,7 +10,7 @@ filterable reports and local image uploads for drivers, brands and trucks.
 
 - [Mir Said Sahin](https://github.com/mirsaidsahin) — Project owner
 - Teammate: [amk1005799Heli](https://github.com/amk1005799Heli)
-- Teammate : https://github.com/MdAfsarhossain123
+- Teammate : ” https://github.com/MdAfsarhossain123 “
 
 ## Setup
 
