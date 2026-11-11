@@ -10,8 +10,8 @@ the app, with system checks and filtered data exports available in Reports & Sys
 - A Command Center with fleet counts, dispatch attention items, driver performance and
   recent operating activity.
 - An interactive route map with truck and driver photo previews. Map positions are
-  illustrative: they are placed along planned routes, change when the page is refreshed,
-  and update automatically every ten minutes. They are not GPS locations.
+  estimated from each job's start time and route duration, refresh automatically every ten
+  minutes, and are not GPS locations.
 - Fleet and operations workspaces for trucks, brands, garages, jobs, cargo, routes and
   customers, plus driver record management.
 - Rule-based checks for jobs that need dispatch review, database/schema status panels,
@@ -76,3 +76,4 @@ assets/         local images, ignored by git
 | `cryptography` package is missing | `pip install cryptography` (MySQL 8 sign-in needs it) |
 
 Definitions for the available schema and status/image conventions: `docs/DEFINITIONS.md`.
+Interface colors, type, spacing and accessibility rules: `docs/DESIGN.md`.

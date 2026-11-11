@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-import random
+import hashlib
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -29,13 +29,28 @@ FINLAND_NODES = {
     "Kotka": (26.94, 60.47), "Kouvola": (26.70, 60.87),
     "Kuopio": (27.68, 62.89), "Rovaniemi": (25.72, 66.50),
 }
-TRUCK_COLORS = ["#D69A4A", "#91A17B", "#C77658", "#7896A0", "#B8A36A", "#9B8D7A", "#748A74"]
+TRUCK_COLORS = ["#D69A4A", "#8FA37A", "#C77658", "#7D9AA5", "#B8A36A", "#9B8D7A", "#748A74"]
 
 
-def _simulated_progress(job: dict) -> float:
-    """Return a fresh illustrative position inside the planned route."""
-    del job  # position is illustrative and deliberately changes on each map render
-    return random.uniform(0.15, 0.85)
+def _estimated_progress(job: dict) -> float:
+    """Estimate route progress from the recorded start and route duration.
+
+    This is a schedule-based estimate, not a GPS reading. If timing data is absent,
+    a stable midpoint is used so refreshes never make a truck jump along its route.
+    """
+    start = pd.to_datetime(job.get("StartDate"), errors="coerce")
+    try:
+        duration_hours = float(job.get("EstimatedHours") or 0)
+    except (TypeError, ValueError):
+        duration_hours = 0
+    if pd.notna(start) and duration_hours > 0:
+        now = pd.Timestamp.now(tz=start.tz) if start.tz is not None else pd.Timestamp.now()
+        elapsed_hours = max((now - start).total_seconds() / 3600, 0)
+        return min(elapsed_hours / duration_hours, 0.98)
+
+    seed = f"{job.get('TruckID')}:{job.get('JobID')}".encode("utf-8")
+    value = int.from_bytes(hashlib.blake2s(seed, digest_size=4).digest(), "big") / 0xFFFFFFFF
+    return 0.15 + value * 0.7
 
 
 @st.cache_data(show_spinner=False)
@@ -60,13 +75,13 @@ def _truck_tooltip(row: dict, progress: float, truck_color: str) -> str:
     truck_src = _asset_uri(truck_image(int(row["TruckID"]), brand_id, "tractor"))
     driver_src = _asset_uri(driver_image(int(row["DriverID"])))
     truck_photo = (f'<img src="{truck_src}" style="width:78px;height:52px;object-fit:contain;'
-                   'background:#202423;border-radius:4px;padding:3px">' if truck_src else
-                   '<div style="width:78px;height:52px;display:grid;place-items:center;background:#272C2A;'
-                   'border-radius:4px;color:#A3AAA1;font-size:10px">TRUCK</div>')
+                   'background:#191D1B;border-radius:4px;padding:3px">' if truck_src else
+                   '<div style="width:78px;height:52px;display:grid;place-items:center;background:#212724;'
+                   'border-radius:4px;color:#A8AFA6;font-size:10px">TRUCK</div>')
     driver_photo = (f'<img src="{driver_src}" style="width:48px;height:48px;object-fit:cover;'
-                    'border-radius:50%;border:2px solid #3A403C">' if driver_src else
-                    '<div style="width:48px;height:48px;border-radius:50%;background:#272C2A;display:grid;'
-                    'place-items:center;color:#A3AAA1;font-size:10px">DRIVER</div>')
+                    'border-radius:50%;border:2px solid #333A36">' if driver_src else
+                    '<div style="width:48px;height:48px;border-radius:50%;background:#212724;display:grid;'
+                    'place-items:center;color:#A8AFA6;font-size:10px">DRIVER</div>')
     truck = escape(str(row.get("Truck") or "Truck"))
     plate = escape(str(row.get("PlateNumber") or "—"))
     driver = escape(str(row.get("Driver") or "Unassigned"))
@@ -74,14 +89,14 @@ def _truck_tooltip(row: dict, progress: float, truck_color: str) -> str:
     cargo = escape(str(row.get("CargoName") or "No cargo"))
     customer = escape(str(row.get("Customer") or "Unassigned"))
     return (
-        '<div style="width:275px;padding:9px 10px;border-radius:5px;background:#202423;color:#E8E8E1;'
-        'font:12px Bahnschrift,Segoe UI,sans-serif;border:1px solid #3A403C;box-shadow:0 8px 26px #0008">'
+        '<div style="width:275px;padding:9px 10px;border-radius:6px;background:#191D1B;color:#ECEDE6;'
+        'font:12px Bahnschrift,Segoe UI,sans-serif;border:1px solid #333A36;box-shadow:0 8px 26px #0008">'
         f'<div style="font-weight:700;color:{truck_color};font-size:14px;margin-bottom:7px">{truck} · {plate}</div>'
         f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">{truck_photo}{driver_photo}'
-        f'<div><div style="font-weight:700">{driver}</div><div style="color:#A3AAA1">Job #{int(row["JobID"])}</div></div></div>'
-        f'<div style="color:#D4D6CF">{route}</div>'
-        f'<div style="color:#A3AAA1;margin-top:3px">{cargo} · {customer}</div>'
-        f'<div style="color:#91A17B;margin-top:6px;font-weight:700">ESTIMATED POSITION · {progress:.0%} OF ROUTE</div>'
+        f'<div><div style="font-weight:700">{driver}</div><div style="color:#A8AFA6">Job #{int(row["JobID"])}</div></div></div>'
+        f'<div style="color:#ECEDE6">{route}</div>'
+        f'<div style="color:#A8AFA6;margin-top:3px">{cargo} · {customer}</div>'
+        f'<div style="color:#8FA37A;margin-top:6px;font-weight:700">ESTIMATED POSITION · {progress:.0%} OF ROUTE</div>'
         '</div>'
     )
 
@@ -104,7 +119,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
             x2, y2 = FINLAND_NODES[end]
             mapped_cities.update((start, end))
             transit, pending = int(row["in_transit"] or 0), int(row["pending"] or 0)
-            color = "#7896A0" if transit else ("#C77658" if pending else "#3A403C")
+            color = "#7D9AA5" if transit else ("#C77658" if pending else "#333A36")
             folium.PolyLine(
                 [(y1, x1), (y2, x2)], color=color, weight=3 if transit or pending else 1.5,
                 opacity=.66 if transit or pending else .35,
@@ -117,7 +132,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
         start, end = row.get("DepartureCity"), row.get("ArrivalCity")
         if start not in FINLAND_NODES or end not in FINLAND_NODES:
             continue
-        progress = _simulated_progress(row)
+        progress = _estimated_progress(row)
         x1, y1 = FINLAND_NODES[start]
         x2, y2 = FINLAND_NODES[end]
         lon, lat = x1 + (x2 - x1) * progress, y1 + (y2 - y1) * progress
@@ -127,7 +142,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
         job_key = str(int(row["JobID"]))
         truck_color = TRUCK_COLORS[int(row["TruckID"]) % len(TRUCK_COLORS)]
         route_line = folium.PolyLine(
-            [(y1, x1), (y2, x2)], color="#7896A0", weight=2.5, opacity=.62,
+            [(y1, x1), (y2, x2)], color="#7D9AA5", weight=2.5, opacity=.62,
             tooltip=f"Job #{row['JobID']} · {escape(start)} → {escape(end)}",
         ).add_to(map_view)
         marker = folium.CircleMarker(
@@ -151,8 +166,8 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
         for city in cities:
             lon, lat = FINLAND_NODES[city]
             folium.CircleMarker(
-                [lat, lon], radius=4, color="#E8E8E1", weight=1,
-                fill=True, fill_color="#E8E8E1", fill_opacity=.9,
+                [lat, lon], radius=4, color="#ECEDE6", weight=1,
+                fill=True, fill_color="#ECEDE6", fill_opacity=.9,
                 tooltip=city,
             ).add_to(map_view)
     if plotted_jobs:
@@ -173,7 +188,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
   let picker, selectedLabel;
   function selectRoute(id) {{
     Object.keys(routeLines).forEach(function(key) {{
-      routeLines[key].setStyle({{color:'#7896A0', weight:2.5, opacity:.62}});
+      routeLines[key].setStyle({{color:'#7D9AA5', weight:2.5, opacity:.62}});
       truckMarkers[key].setStyle({{color:baseColors[key], fillColor:baseColors[key], radius:8}});
     }});
     if (routeLines[id]) {{
@@ -190,8 +205,8 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
   const routeControl = L.control({{position:'topright'}});
   routeControl.onAdd = function() {{
     const box = L.DomUtil.create('div', 'fi-route-control');
-    box.style.cssText = 'width:280px;padding:10px 11px;background:#202423;border:1px solid #3A403C;border-radius:5px;color:#E8E8E1;box-shadow:0 3px 14px #0008;font:12px Bahnschrift,Aptos,Segoe UI,sans-serif';
-    box.innerHTML = '<div style="font-weight:700;color:#D69A4A;margin:0 0 6px">TRUCK ROUTE</div><select style="width:100%;padding:7px 8px;border-radius:4px;background:#272C2A;color:#E8E8E1;border:1px solid #3A403C"><option value="">Choose a vehicle</option></select><div class="fi-route-selected" style="margin-top:6px;color:#A3AAA1;line-height:1.4">No route selected</div>';
+    box.style.cssText = 'width:280px;padding:10px 11px;background:#191D1B;border:1px solid #333A36;border-radius:6px;color:#ECEDE6;box-shadow:0 3px 14px #0008;font:12px Bahnschrift,Aptos,Segoe UI,sans-serif';
+    box.innerHTML = '<div style="font-weight:700;color:#D69A4A;margin:0 0 6px">TRUCK ROUTE</div><select style="width:100%;padding:7px 8px;border-radius:4px;background:#212724;color:#ECEDE6;border:1px solid #333A36"><option value="">Choose a vehicle</option></select><div class="fi-route-selected" style="margin-top:6px;color:#A8AFA6;line-height:1.4">No route selected</div>';
     picker = box.querySelector('select');
     selectedLabel = box.querySelector('.fi-route-selected');
     Object.keys(routeLines).forEach(function(key) {{
@@ -224,7 +239,7 @@ def render_fleet_map_panel(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> N
     st.markdown(
         '<div class="fi-map-legend"><span><i class="fi-legend-dot fi-legend-trucks"></i>Vehicles in transit</span>'
         '<span><i class="fi-legend-line"></i>Selected route</span>'
-        '<span class="fi-map-disclaimer">Illustrative positions · not GPS · updates every 10 minutes</span></div>',
+        '<span class="fi-map-disclaimer">Schedule-based estimates · not GPS · refreshes every 10 minutes</span></div>',
         unsafe_allow_html=True,
     )
     if not plotted_jobs:
@@ -280,7 +295,7 @@ def _driver_view(repo: DashboardRepository) -> None:
         three.metric("Distance driven", f"{int(active['DistanceKm'].sum()):,} km")
         chart = active.head(10).sort_values("On-time %", ascending=True)
         fig = px.bar(chart, x="On-time %", y="Driver", orientation="h", text="On-time %",
-                     color="On-time %", color_continuous_scale=["#C77658", "#D69A4A", "#91A17B"],
+                     color="On-time %", color_continuous_scale=["#C77658", "#D69A4A", "#8FA37A"],
                      range_color=[0, 100])
         fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", cliponaxis=False)
         fig.update_layout(height=360, margin={"l": 8, "r": 34, "t": 12, "b": 8},
@@ -399,16 +414,16 @@ try:
                         "Dispatch should confirm or reschedule these assignments."
                     )
                 fig = px.bar(counts, x="Vehicles", y="Status", orientation="h", color="Status",
-                             color_discrete_map={"In Transit": "#7896A0", "Available": "#91A17B",
+                             color_discrete_map={"In Transit": "#7D9AA5", "Available": "#8FA37A",
                                                  "Scheduled": "#D69A4A", "Past-start review": "#C77658",
                                                  "Assignment conflict": "#9B8D7A"})
                 fig.update_traces(marker_line_width=0, text=counts["Vehicles"], textposition="outside",
-                                  cliponaxis=False, textfont={"color": "#E8E8E1", "size": 12})
+                                  cliponaxis=False, textfont={"color": "#ECEDE6", "size": 12})
                 fig.update_layout(height=340, margin={"l": 4, "r": 8, "t": 8, "b": 8,
                                                      "pad": 0}, showlegend=False,
                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                  font={"family": "Bahnschrift, Aptos, Segoe UI, sans-serif", "color": "#E8E8E1"},
-                                  xaxis={"showgrid": True, "gridcolor": "#3A403C", "zeroline": False,
+                                  font={"family": "Bahnschrift, Aptos, Segoe UI, sans-serif", "color": "#ECEDE6"},
+                                  xaxis={"showgrid": True, "gridcolor": "#333A36", "zeroline": False,
                                          "title": "Trucks", "range": [0, max(int(counts["Vehicles"].max()) * 1.25, 1)]},
                                   yaxis={"title": "", "categoryorder": "total ascending"})
                 st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
