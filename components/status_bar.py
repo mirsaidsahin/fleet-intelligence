@@ -12,7 +12,7 @@ from utils.version import APP_NAME
 
 STATE_KEY = "fi_health_report"
 FORCE_KEY = "fi_force_refresh"
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+TIME_FORMAT = "%d %b %Y · %H:%M"
 
 
 def _on_refresh(ctx: AppContext) -> None:
@@ -58,12 +58,12 @@ def render_top_bar(ctx: AppContext) -> HealthReport | None:
     report = current_report(ctx)
     css, title, lines = _pill(report)
 
-    left, middle, stamp, button = st.columns([3.2, 4.3, 2.3, 1.2], vertical_alignment="center")
+    left, middle, stamp, button = st.columns([2.8, 4.5, 2.3, 1.2], vertical_alignment="center")
     with left:
         st.markdown(
             f'<div class="fi-wordmark"><div class="fi-bar"></div><div>'
             f'<div class="fi-wm-title">{escape(APP_NAME)}</div>'
-            f'<div class="fi-wm-sub">Fleet operations platform</div></div></div>',
+            f'<div class="fi-wm-sub">LOGISTICS · CONTROL DESK</div></div></div>',
             unsafe_allow_html=True,
         )
     with middle:
@@ -81,6 +81,5 @@ def render_top_bar(ctx: AppContext) -> HealthReport | None:
             unsafe_allow_html=True,
         )
     with button:
-        st.button("Refresh", icon=":material/refresh:", key="fi_refresh", on_click=_on_refresh, args=(ctx,), width="stretch")
-    st.markdown('<hr class="fi-rule">', unsafe_allow_html=True)
+        st.button("Refresh data", icon=":material/refresh:", key="fi_refresh", on_click=_on_refresh, args=(ctx,), width="stretch")
     return report

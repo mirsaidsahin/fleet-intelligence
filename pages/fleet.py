@@ -3,16 +3,22 @@ import streamlit as st
 from components.bootstrap import get_app_context
 from components.entity_manager import entity_manager
 from components.placeholders import page_header
+from components.section_nav import section_nav
 
 page_header("Fleet", "Manage trucks, manufacturer brands and garage locations.")
 ctx = get_app_context()
 if not ctx.database:
     st.warning("Configure the database connection in Reports & System to manage fleet records.")
 else:
-    truck_tab, brand_tab, garage_tab = st.tabs(["Trucks", "Brands", "Garages"])
-    with truck_tab:
+    active = section_nav("fleet_workspace", [
+        ("Trucks", "VEHICLES", "Browse trucks, specifications and service status."),
+        ("Brands", "MANUFACTURERS", "Maintain the makes represented in your fleet."),
+        ("Garages", "LOCATIONS", "Review and manage your regional garage network."),
+    ])
+    st.markdown(f'<div class="fi-section-label">{active} workspace</div>', unsafe_allow_html=True)
+    if active == "Trucks":
         entity_manager(ctx.database, "trucks", "Truck catalog")
-    with brand_tab:
+    elif active == "Brands":
         entity_manager(ctx.database, "brands", "Manufacturer brands")
-    with garage_tab:
+    else:
         entity_manager(ctx.database, "garages", "Garage locations")

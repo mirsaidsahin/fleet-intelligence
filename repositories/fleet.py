@@ -102,6 +102,23 @@ class DashboardRepository:
             ORDER BY CASE j.Status WHEN 'In Transit' THEN 0 ELSE 1 END,
                      j.StartDate ASC, j.JobID LIMIT :limit""", {"limit": limit})
 
+    def active_truck_positions(self, limit: int = 200) -> list[dict[str, Any]]:
+        """Return in-transit assignments and route timing for estimated map positions."""
+        return self.db.fetch_all("""SELECT j.JobID, j.TruckID, j.DriverID, j.Status, j.StartDate,
+            t.BrandID,
+            CONCAT(b.BrandName, ' ', t.Model) AS Truck, t.PlateNumber,
+            CONCAT(d.FirstName, ' ', d.LastName) AS Driver,
+            r.RouteID, r.DepartureCity, r.ArrivalCity, r.DistanceKm, r.EstimatedHours,
+            c.CargoName, cu.CompanyName AS Customer
+            FROM jobs j JOIN trucks t ON t.TruckID=j.TruckID
+            LEFT JOIN brands b ON b.BrandID=t.BrandID
+            JOIN drivers d ON d.DriverID=j.DriverID
+            JOIN routes r ON r.RouteID=j.RouteID
+            LEFT JOIN cargos c ON c.CargoID=j.CargoID
+            LEFT JOIN customers cu ON cu.CustomerID=j.CustomerID
+            WHERE j.Status='In Transit'
+            ORDER BY j.StartDate, j.JobID LIMIT :limit""", {"limit": limit})
+
     def route_network(self) -> list[dict[str, Any]]:
         """Route nodes and workload counts from the existing MySQL records."""
         return self.db.fetch_all("""SELECT r.RouteID, r.DepartureCity, r.ArrivalCity,

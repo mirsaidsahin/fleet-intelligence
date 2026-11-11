@@ -1,10 +1,26 @@
 # Fleet Intelligence System
 
 Streamlit and MySQL fleet operations app for the existing `omnilogistics` database.
-Current state: **1.1.0**. Includes the Command Center, offline route network, rule-based
-operational alerts, live dispatch board with filtered CSV export, driver performance
-scorecards, searchable CRUD for all eight database tables, live system/schema health,
-filterable reports and local image uploads for drivers, brands and trucks.
+The Command Center brings fleet status, dispatch work, route activity and operational
+alerts into one view. Fleet, driver and operations records can also be maintained from
+the app, with system checks and filtered data exports available in Reports & System.
+
+## What the app includes
+
+- A Command Center with fleet counts, dispatch attention items, driver performance and
+  recent operating activity.
+- An interactive route map with truck and driver photo previews. Map positions are
+  illustrative: they are placed along planned routes, change when the page is refreshed,
+  and update automatically every ten minutes. They are not GPS locations.
+- Fleet and operations workspaces for trucks, brands, garages, jobs, cargo, routes and
+  customers, plus driver record management.
+- Rule-based checks for jobs that need dispatch review, database/schema status panels,
+  searchable reports and CSV downloads.
+- Local image uploads for drivers, brands and trucks, with a shared dark interface using
+  warm amber, muted green and steel tones.
+
+The app reads and writes the existing MySQL `omnilogistics` database; it does not need an
+AI service or API key.
 
 ## Project team
 
