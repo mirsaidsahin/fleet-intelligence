@@ -9,9 +9,9 @@ the app, with system checks and filtered data exports available in Reports & Sys
 
 - A Command Center with fleet counts, dispatch attention items, driver performance and
   recent operating activity.
-- An interactive route map with truck and driver photo previews. Map positions are
-  estimated from each job's start time and route duration, refresh automatically every ten
-  minutes, and are not GPS locations.
+- An interactive route map with truck and driver photo previews. Illustrative truck points
+  are randomized along their assigned routes on page refresh and every ten minutes; they
+  are not GPS locations.
 - Fleet and operations workspaces for trucks, brands, garages, jobs, cargo, routes and
   customers, plus driver record management.
 - Rule-based checks for jobs that need dispatch review, database/schema status panels,

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-import hashlib
+import random
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -33,24 +33,9 @@ TRUCK_COLORS = ["#D69A4A", "#8FA37A", "#C77658", "#7D9AA5", "#B8A36A", "#9B8D7A"
 
 
 def _estimated_progress(job: dict) -> float:
-    """Estimate route progress from the recorded start and route duration.
-
-    This is a schedule-based estimate, not a GPS reading. If timing data is absent,
-    a stable midpoint is used so refreshes never make a truck jump along its route.
-    """
-    start = pd.to_datetime(job.get("StartDate"), errors="coerce")
-    try:
-        duration_hours = float(job.get("EstimatedHours") or 0)
-    except (TypeError, ValueError):
-        duration_hours = 0
-    if pd.notna(start) and duration_hours > 0:
-        now = pd.Timestamp.now(tz=start.tz) if start.tz is not None else pd.Timestamp.now()
-        elapsed_hours = max((now - start).total_seconds() / 3600, 0)
-        return min(elapsed_hours / duration_hours, 0.98)
-
-    seed = f"{job.get('TruckID')}:{job.get('JobID')}".encode("utf-8")
-    value = int.from_bytes(hashlib.blake2s(seed, digest_size=4).digest(), "big") / 0xFFFFFFFF
-    return 0.15 + value * 0.7
+    """Pick a fresh illustrative point inside the planned route on each render."""
+    del job  # The map position is illustrative, not derived from schedule or GPS data.
+    return random.uniform(0.15, 0.85)
 
 
 @st.cache_data(show_spinner=False)
@@ -96,7 +81,7 @@ def _truck_tooltip(row: dict, progress: float, truck_color: str) -> str:
         f'<div><div style="font-weight:700">{driver}</div><div style="color:#A8AFA6">Job #{int(row["JobID"])}</div></div></div>'
         f'<div style="color:#ECEDE6">{route}</div>'
         f'<div style="color:#A8AFA6;margin-top:3px">{cargo} · {customer}</div>'
-        f'<div style="color:#8FA37A;margin-top:6px;font-weight:700">ESTIMATED POSITION · {progress:.0%} OF ROUTE</div>'
+        f'<div style="color:#8FA37A;margin-top:6px;font-weight:700">ILLUSTRATIVE POSITION · {progress:.0%} OF ROUTE</div>'
         '</div>'
     )
 
@@ -239,7 +224,7 @@ def render_fleet_map_panel(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> N
     st.markdown(
         '<div class="fi-map-legend"><span><i class="fi-legend-dot fi-legend-trucks"></i>Vehicles in transit</span>'
         '<span><i class="fi-legend-line"></i>Selected route</span>'
-        '<span class="fi-map-disclaimer">Schedule-based estimates · not GPS · refreshes every 10 minutes</span></div>',
+        '<span class="fi-map-disclaimer">Random illustrative points · not GPS · refresh or wait 10 minutes to move</span></div>',
         unsafe_allow_html=True,
     )
     if not plotted_jobs:

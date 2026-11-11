@@ -70,7 +70,6 @@ set in `.streamlit/config.toml`.
 
 ## Map data note
 
-Truck map markers are schedule-based estimates calculated from job start time and the
-route's estimated duration. They are not live telematics or GPS positions. If timing data
-is unavailable, a stable illustrative point is used instead of a new random position on
-each refresh.
+Truck map markers are illustrative random points along their assigned routes. They move
+on page refresh and on the ten-minute automatic map refresh. They are not live telematics
+or GPS positions.
