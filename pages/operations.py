@@ -1,3 +1,4 @@
+"""Workspace for editing jobs, cargo, routes, and customer records."""
 import streamlit as st
 
 from components.bootstrap import get_app_context
@@ -7,9 +8,11 @@ from components.section_nav import section_nav
 
 page_header("Operations", "Schedule and track jobs, routes, cargo and customers.")
 ctx = get_app_context()
+# Keep record management disabled until the database is configured.
 if not ctx.database:
     st.warning("Configure the database connection in Reports & System to manage operations.")
 else:
+    # Let the user switch operation areas without navigating to another page.
     active = section_nav("operations_workspace", [
         ("Jobs", "DISPATCH", "Track work orders and current delivery status."),
         ("Cargo", "FREIGHT", "Manage loads, weight and declared value."),

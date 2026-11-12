@@ -8,6 +8,7 @@ from services.workflow import status_transition_problem
 
 
 FIELDS = {
+    # Each field maps to (database column, validation kind, nullable) metadata.
     "trucks": [("BrandID","brand",True),("Model","text",False),("ProductionYear","int",True),("RequiredLicense","license",False),("PlateNumber","text",False),("Mileage","int",True),("GarageID","garage",True),("AssignedDriverID","driver",True)],
     "drivers": [("FirstName","text",False),("LastName","text",False),("LicenseType","license",False),("ExperienceYears","int",False),("Phone","text",True),("MentorID","driver",True)],
     "jobs": [("TruckID","truck",False),("DriverID","driver",False),("CargoID","cargo",False),("RouteID","route",False),("StartDate","datetime",True),("Status","status",False),("EndDate","datetime",True),("CustomerID","customer",True),("RevenueEUR","decimal",True)],
@@ -29,6 +30,7 @@ def validate_record(
         return ["Unsupported record type."]
 
     problems: list[str] = []
+    # Validate the configured fields uniformly before applying job-specific rules.
     for name, kind, nullable in fields[table]:
         value = values.get(name)
         if not nullable and kind == "text" and (value is None or not str(value).strip()):
@@ -45,6 +47,7 @@ def validate_record(
                 problems.append(f"{name} must be a whole number.")
 
     if table == "jobs":
+        # Job dates and status changes depend on the existing record state.
         start, end = values.get("StartDate"), values.get("EndDate")
         if start is not None and end is not None and end < start:
             problems.append("EndDate must be the same as or later than StartDate.")

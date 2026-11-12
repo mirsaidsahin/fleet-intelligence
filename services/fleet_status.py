@@ -13,6 +13,7 @@ from models.status import OpenJob, OperationalStatus
 
 PENDING = "Pending"
 IN_TRANSIT = "In Transit"
+# Only these job states consume a truck or driver in the derived status model.
 OPEN_STATUSES = (PENDING, IN_TRANSIT)
 
 
@@ -31,8 +32,11 @@ def _window(job: OpenJob, now: datetime) -> tuple[datetime, datetime] | None:
 
 
 def _has_conflict(jobs: list[OpenJob], now: datetime) -> bool:
+    """Detect duplicate transit assignments or overlapping estimated time windows."""
+    # Two simultaneous trips cannot be valid for the same truck or driver.
     if sum(1 for j in jobs if j.status == IN_TRANSIT) > 1:
         return True
+    # Sort known windows so adjacent comparisons can detect any overlap.
     windows = sorted(w for w in (_window(j, now) for j in jobs) if w is not None)
     return any(nxt_start < cur_end for (_, cur_end), (nxt_start, _) in zip(windows, windows[1:]))
 

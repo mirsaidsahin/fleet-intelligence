@@ -13,6 +13,7 @@ from services.visual_config import VISUAL_CONVENTION_NOTE, choose_visual_config
 from utils.db import DatabaseUnavailableError, QueryError
 
 LOOKUPS = {
+    # Map form relationship types to their source table and display column.
     "brand": ("brands","BrandName"), "garage": ("garages","City"), "driver": ("drivers","FirstName"),
     "truck": ("trucks","PlateNumber"), "cargo": ("cargos","CargoName"), "route": ("routes","DepartureCity"),
     "customer": ("customers","CompanyName"),
@@ -20,6 +21,7 @@ LOOKUPS = {
 
 
 def _label(kind: str, row: dict) -> str:
+    """Format a relationship option with a readable label and its database id."""
     if kind == "driver":
         return f"{row.get('FirstName','')} {row.get('LastName','')} (#{row['id']})"
     if kind == "route":
@@ -28,7 +30,9 @@ def _label(kind: str, row: dict) -> str:
 
 
 def _read_form(repo: FleetRepository, table: str, current: dict | None) -> dict:
+    """Render fields for one entity and collect their current form values."""
     values = {}
+    # The field metadata selects the appropriate Streamlit input widget.
     for name, kind, nullable in FIELDS[table]:
         value = (current or {}).get(name)
         label = name.replace("ID", "").replace("EUR", " (EUR)").replace("Kg", " (kg)")
@@ -36,6 +40,7 @@ def _read_form(repo: FleetRepository, table: str, current: dict | None) -> dict:
             lookup, label_col = LOOKUPS[kind]
             options = repo.options(lookup, FleetRepository.TABLES[lookup][0], label_col)
             choices = ([None] if nullable else []) + [int(row["id"]) for row in options]
+            # Keep ids as stored values while showing human-readable labels.
             labels = {int(row["id"]): _label(kind, row) for row in options}
             index = choices.index(value) if value in choices else 0
             selected = st.selectbox(label, choices, index=index, format_func=lambda x: "None" if x is None else labels.get(x, str(x)), key=f"form_{table}_{name}")
@@ -47,6 +52,7 @@ def _read_form(repo: FleetRepository, table: str, current: dict | None) -> dict:
             choices = ["Pending", "In Transit", "Completed", "Cancelled"]
             values[name] = st.selectbox(label, choices, index=choices.index(value) if value in choices else 0, key=f"form_{table}_{name}")
         elif kind == "datetime":
+            # Optional date/time fields use a checkbox so NULL stays explicit.
             dt = value if isinstance(value, datetime) else None
             enabled = st.checkbox(f"Set {label}", value=dt is not None, key=f"set_{table}_{name}")
             if enabled:
@@ -91,6 +97,7 @@ def record_change_summary(title: str, operation: str, record_id: int | None = No
 
 
 def entity_manager(database, table: str, title: str) -> None:
+    """Render search, image, create/edit, and delete controls for one table."""
     repo = FleetRepository(database)
     st.subheader(title)
     notice_key = f"record_notice_{table}"
@@ -100,6 +107,7 @@ def entity_manager(database, table: str, title: str) -> None:
     if image_notice_key in st.session_state:
         st.success(st.session_state.pop(image_notice_key))
     try:
+        # Load a bounded set of rows once for the table, editor, and image picker.
         rows = repo.rows(table)
         if not rows:
             st.info("No records found. Add the first record below.")
@@ -107,11 +115,13 @@ def entity_manager(database, table: str, title: str) -> None:
             frame = pd.DataFrame(rows)
             search = st.text_input("Search records", key=f"search_{table}", placeholder="Search any visible value")
             if search.strip():
+                # Search every visible column without changing the stored rows.
                 mask = frame.astype(str).apply(lambda col: col.str.contains(search.strip(), case=False, na=False)).any(axis=1)
                 frame = frame[mask]
             st.caption(f"{len(frame)} record(s) shown · maximum 500")
             st.dataframe(frame, hide_index=True, width="stretch")
             if table in ("trucks", "drivers", "brands"):
+                # Image-capable entities share the same preview/upload workflow.
                 key_col = FleetRepository.TABLES[table][0]
                 selected_id = st.selectbox("Image preview", [int(row[key_col]) for row in rows], format_func=lambda x: f"#{x}", key=f"image_preview_{table}")
                 selected = next(row for row in rows if int(row[key_col]) == selected_id)
@@ -121,6 +131,7 @@ def entity_manager(database, table: str, title: str) -> None:
                     image_path = brand_image(selected_id)
                     visual = None
                 else:
+                    # Truck imagery reflects its demo status and selected driver.
                     transit = database.fetch_one(
                         "SELECT DriverID FROM jobs WHERE TruckID=:id AND Status='In Transit' ORDER BY StartDate DESC LIMIT 1",
                         {"id": selected_id},
@@ -174,6 +185,7 @@ def entity_manager(database, table: str, title: str) -> None:
         all_rows = rows
         options = [int(row[key_col]) for row in all_rows]
         with st.expander("Create or edit record", expanded=not bool(rows)):
+            # Reuse one form for both insert and update actions.
             mode = st.radio("Action", ["Create", "Edit"], horizontal=True, key=f"mode_{table}")
             current = None
             if mode == "Edit":
@@ -186,6 +198,7 @@ def entity_manager(database, table: str, title: str) -> None:
                 values = _read_form(repo, table, current)
                 submitted = st.form_submit_button("Save record", type="primary", disabled=(mode == "Edit" and current is None))
             if submitted:
+                # Validate fields and job overlaps before sending any write query.
                 problems = validate_record(table, values, FIELDS, current if table == "jobs" else None)
                 conflicts = []
                 if table == "jobs" and not problems:
@@ -198,6 +211,7 @@ def entity_manager(database, table: str, title: str) -> None:
                         st.error(problem)
                 else:
                     try:
+                        # Save, retain a short success notice, then refresh the table.
                         repo.save(table, values, int(current[key_col]) if mode == "Edit" and current else None)
                         if current:
                             changed = [name for name in values if current.get(name) != values[name]]
@@ -215,6 +229,7 @@ def entity_manager(database, table: str, title: str) -> None:
                 delete_id = st.selectbox("Record to delete", options, format_func=lambda x: f"#{x}", key=f"delete_id_{table}")
                 if delete_record_controls(title, int(delete_id), repo.linked_record_counts(table, int(delete_id)), table):
                     try:
+                        # The UI checks known links first; database constraints remain final.
                         repo.delete(table, int(delete_id))
                         st.session_state[notice_key] = record_change_summary(title, "Deleted", int(delete_id))
                         st.rerun()

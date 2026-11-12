@@ -83,6 +83,7 @@ class Database:
             raise self._wrap(exc) from exc
 
     def fetch_one(self, sql: str, params: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+        """Return the first result row, or None when the query matched nothing."""
         rows = self.fetch_all(sql, params)
         return rows[0] if rows else None
 
@@ -96,10 +97,12 @@ class Database:
             raise self._wrap(exc) from exc
 
     def dispose(self) -> None:
+        """Close pooled connections when the application shuts down."""
         self._engine.dispose()
 
     @staticmethod
     def _wrap(exc: SQLAlchemyError) -> Exception:
+        """Log the driver detail and return a user-safe application exception."""
         logger.error("Database error: %s", exc, exc_info=True)
         message = describe_db_error(exc)
         return DatabaseUnavailableError(message) if is_connection_error(exc) else QueryError(message)

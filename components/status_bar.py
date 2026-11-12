@@ -16,6 +16,7 @@ TIME_FORMAT = "%d %b %Y · %H:%M"
 
 
 def _on_refresh(ctx: AppContext) -> None:
+    """Mark cached dashboard data stale and reload settings when needed."""
     st.session_state[FORCE_KEY] = True
     st.cache_data.clear()  # read caches added in later phases are dropped here too
     if ctx.settings is None:
@@ -55,6 +56,7 @@ def _pill(report: HealthReport | None) -> tuple[str, str, list[str]]:
 
 
 def render_top_bar(ctx: AppContext) -> HealthReport | None:
+    """Render the brand, database status, refresh timestamp, and refresh action."""
     report = current_report(ctx)
     css, title, lines = _pill(report)
 

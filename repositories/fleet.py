@@ -6,6 +6,9 @@ from typing import Any, Mapping
 
 
 class FleetRepository:
+    """Read and write allow-listed fleet tables using parameterized values."""
+
+    # Column names are fixed here; user input is used only for bound values.
     TABLES = {
         "trucks": ("TruckID", "BrandID", "Model", "ProductionYear", "RequiredLicense", "PlateNumber", "Mileage", "GarageID", "AssignedDriverID"),
         "drivers": ("DriverID", "FirstName", "LastName", "LicenseType", "ExperienceYears", "Phone", "MentorID"),
@@ -21,10 +24,12 @@ class FleetRepository:
         self.db = database
 
     def rows(self, table: str, limit: int = 500) -> list[dict[str, Any]]:
+        """Fetch recent rows from one supported table."""
         self._table(table)
         return self.db.fetch_all(f"SELECT * FROM {table} ORDER BY {self.TABLES[table][0]} DESC LIMIT :limit", {"limit": limit})
 
     def options(self, table: str, key: str, label: str) -> list[dict[str, Any]]:
+        """Fetch id/label pairs for relationship selectors."""
         self._table(table)
         cols = self.TABLES[table]
         if key not in cols or label not in cols:
@@ -32,6 +37,7 @@ class FleetRepository:
         return self.db.fetch_all(f"SELECT {key} AS id, {label} AS label FROM {table} ORDER BY {label}")
 
     def save(self, table: str, values: Mapping[str, Any], record_id: int | None = None) -> None:
+        """Insert a new row or update an existing row within one transaction."""
         self._table(table)
         columns = set(self.TABLES[table][1:])
         if not values or set(values) - columns:
@@ -48,6 +54,7 @@ class FleetRepository:
             conn.execute(text(sql), dict(values))
 
     def delete(self, table: str, record_id: int) -> None:
+        """Delete one row; the database enforces foreign-key restrictions."""
         self._table(table)
         from sqlalchemy import text
         with self.db.transaction() as conn:
@@ -86,6 +93,7 @@ class FleetRepository:
         self._table(table)
         from sqlalchemy import text
         counts: dict[str, int] = {}
+        # Count each known child relationship to explain blocked deletes in the UI.
         for child_table, columns in references[table].items():
             predicates = " OR ".join(f"{column}=:record_id" for column in columns)
             query = text(f"SELECT COUNT(*) AS total FROM {child_table} WHERE {predicates}")
@@ -95,11 +103,14 @@ class FleetRepository:
 
     @classmethod
     def _table(cls, table: str) -> None:
+        """Reject table names outside the repository's fixed allow-list."""
         if table not in cls.TABLES:
             raise ValueError("Unsupported table")
 
 
 class DashboardRepository:
+    """Provide read-only aggregate queries for dashboard views."""
+
     def __init__(self, database: Any) -> None:
         self.db = database
 

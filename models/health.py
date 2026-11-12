@@ -7,6 +7,8 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class ConnectionStatus:
+    """One database ping result and its safe, optional diagnostic details."""
+
     connected: bool
     checked_at: datetime
     latency_ms: float | None = None
@@ -17,6 +19,8 @@ class ConnectionStatus:
 
 @dataclass(frozen=True)
 class SchemaCheckResult:
+    """Counts and differences returned by a comparison with the expected schema."""
+
     tables_expected: int
     tables_found: int
     views_expected: int
@@ -31,6 +35,7 @@ class SchemaCheckResult:
 
     @property
     def ok(self) -> bool:
+        """Return true only when no connection or schema differences were reported."""
         return not (
             self.error
             or self.missing_tables
@@ -40,6 +45,7 @@ class SchemaCheckResult:
         )
 
     def problems(self) -> list[str]:
+        """Flatten schema differences into short messages for the system page."""
         out: list[str] = []
         if self.error:
             out.append(self.error)
@@ -52,10 +58,13 @@ class SchemaCheckResult:
 
 @dataclass(frozen=True)
 class HealthReport:
+    """Combine the latest connection check with the last known schema result."""
+
     connection: ConnectionStatus
     schema: SchemaCheckResult | None  # None until a schema check has run
     last_success_at: datetime | None  # last time a connection check succeeded
 
     @property
     def refreshed_at(self) -> datetime:
+        """Use the connection check time as the report refresh time."""
         return self.connection.checked_at

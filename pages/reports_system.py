@@ -1,3 +1,4 @@
+"""System health details and downloadable operational reports."""
 import streamlit as st
 import pandas as pd
 
@@ -17,6 +18,7 @@ page_header("Reports & System", "Connection, schema and configuration checks")
 system_tab, reports_tab = st.tabs(["System", "Reports"])
 
 with system_tab:
+    # Pair the live connection summary with schema and configuration details.
     left, right = st.columns(2)
     with left:
         connection_card(report, ctx.settings)
@@ -29,6 +31,7 @@ with system_tab:
     st.caption(f"{APP_NAME} {APP_VERSION}, {BUILD_PHASE}")
 
 with reports_tab:
+    # Export only the selected table and apply optional filters before download.
     st.subheader("Operational data export")
     if ctx.database is None:
         st.info("Configure the database connection to build reports.")

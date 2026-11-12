@@ -22,6 +22,7 @@ _CONNECTION_CLASSES = {"OperationalError", "InterfaceError"}
 
 
 def mysql_error_code(exc: BaseException) -> int | None:
+    """Extract a numeric MySQL code from either a driver or wrapped exception."""
     orig = getattr(exc, "orig", exc)
     args = getattr(orig, "args", ())
     if args and isinstance(args[0], int):
@@ -30,6 +31,7 @@ def mysql_error_code(exc: BaseException) -> int | None:
 
 
 def describe_db_error(exc: BaseException) -> str:
+    """Map known failures to a brief message that is safe to display."""
     code = mysql_error_code(exc)
     if code in _BY_CODE:
         return _BY_CODE[code]
@@ -42,4 +44,5 @@ def describe_db_error(exc: BaseException) -> str:
 
 
 def is_connection_error(exc: BaseException) -> bool:
+    """Identify driver connection failures without importing a specific driver."""
     return bool({cls.__name__ for cls in type(exc).__mro__} & _CONNECTION_CLASSES)

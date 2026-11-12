@@ -11,16 +11,20 @@ from components.theme import apply_theme
 from components.welcome import show_welcome
 from utils.version import APP_VERSION, BUILD_PHASE
 
+# Set the shared browser title, icon, layout, and initial sidebar state.
 st.set_page_config(
     page_title="Fleet Intelligence",
     page_icon=":material/local_shipping:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+# Apply the project palette before any page content is rendered.
 apply_theme()
 
+# Load the cached database/settings context once for the current server process.
 ctx = get_app_context()
 
+# Register every top-level page and mark the command center as the landing page.
 navigation = st.navigation(
     [
         st.Page("pages/command_center.py", title="Command Center", icon=":material/dashboard:", default=True),
@@ -31,15 +35,19 @@ navigation = st.navigation(
     ]
 )
 
+# Keep database health visible while giving first-time users a short orientation.
 render_top_bar(ctx)
 show_welcome()
 
+# Show the application version without crowding the main navigation.
 with st.sidebar:
     st.caption(f"Version {APP_VERSION}, {BUILD_PHASE}")
 
+# Stop before page execution when required database settings are invalid or missing.
 if ctx.settings is None:
     st.error("The application is not configured. Copy .env.example to .env, fill in the database settings, then press Refresh.")
     configuration_panel(None, ctx.config_problems)
     st.stop()
 
+# Dispatch control to the page selected in Streamlit's navigation widget.
 navigation.run()

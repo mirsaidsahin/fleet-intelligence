@@ -19,6 +19,7 @@ from utils.logging_setup import configure_logging  # noqa: E402
 
 
 def main() -> int:
+    """Check configuration, connectivity, expected schema, and reference counts."""
     try:
         settings = load_settings()
     except ConfigError as exc:
@@ -46,6 +47,7 @@ def main() -> int:
 
     print("\nRow counts (reference values are from the 2026-10-29 dump; live data may differ):")
     for table, reference in REFERENCE_ROW_COUNTS.items():
+        # Report live row counts as informational comparisons, not schema failures.
         try:
             row = db.fetch_one(f"SELECT COUNT(*) AS n FROM {table}")
             live = row["n"] if row else "?"

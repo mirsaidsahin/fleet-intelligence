@@ -19,6 +19,7 @@ def compare_schema(inspector: Any, spec: SchemaSpec = EXPECTED_SCHEMA) -> Schema
     case-insensitively.
     """
     actual_tables = {name.lower(): name for name in inspector.get_table_names()}
+    # Normalize names so schema checks work across case-sensitive database setups.
     actual_views = {name.lower() for name in inspector.get_view_names()}
 
     missing_tables: list[str] = []
@@ -27,6 +28,7 @@ def compare_schema(inspector: Any, spec: SchemaSpec = EXPECTED_SCHEMA) -> Schema
     missing_fks: list[str] = []
 
     for table, columns in spec.tables.items():
+        # Check required tables and columns first to report missing objects clearly.
         real_name = actual_tables.get(table.lower())
         if real_name is None:
             missing_tables.append(table)
@@ -49,6 +51,7 @@ def compare_schema(inspector: Any, spec: SchemaSpec = EXPECTED_SCHEMA) -> Schema
 
     fk_expected_checkable = 0
     for fk in spec.foreign_keys:
+        # Skip foreign-key checks for missing tables already reported above.
         if fk.table not in fks_by_table:
             continue  # the table itself is already reported as missing
         fk_expected_checkable += 1
@@ -81,6 +84,7 @@ class SchemaVerifier:
         self._spec = spec
 
     def verify(self) -> SchemaCheckResult:
+        """Inspect the configured engine and turn inspection failures into a result."""
         from sqlalchemy import inspect  # lazy: keeps pure logic importable without the driver stack
 
         try:

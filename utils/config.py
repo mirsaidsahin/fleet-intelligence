@@ -69,10 +69,12 @@ class Settings:
         return f"mysql+pymysql://{self.db_user}:***@{self.db_host}:{self.db_port}/{self.db_name}"
 
     def secrets(self) -> tuple[str, ...]:
+        """Return non-empty values that logging must redact."""
         return (self.db_password,) if self.db_password else ()
 
 
 def _read_int(env: Mapping[str, str], name: str, default: int, low: int, high: int, problems: list[str]) -> int:
+    """Parse one bounded integer setting and record invalid input by name."""
     raw = env.get(name)
     if raw is None or raw.strip() == "":
         return default
@@ -91,6 +93,7 @@ def settings_from_mapping(env: Mapping[str, str]) -> Settings:
     """Validate a mapping of variables and build Settings, or raise ConfigError."""
     problems: list[str] = []
 
+    # Required variables are checked without copying secret values into errors.
     for name in REQUIRED_VARS:
         value = env.get(name)
         if value is None:
@@ -99,6 +102,7 @@ def settings_from_mapping(env: Mapping[str, str]) -> Settings:
             problems.append(f"{name} is empty")
 
     log_level = (env.get("LOG_LEVEL") or "INFO").strip().upper()
+    # Normalize level names once, then fall back safely if the value is unknown.
     if log_level not in LOG_LEVELS:
         problems.append(f"LOG_LEVEL must be one of {', '.join(LOG_LEVELS)}")
         log_level = "INFO"
@@ -135,6 +139,7 @@ def load_settings(env_file: Path | None | object = _DEFAULT, environ: Mapping[st
     if env_file is _DEFAULT:
         env_file = DEFAULT_ENV_FILE
     file_values: dict[str, str] = {}
+    # Read .env without mutating the process environment, then let real vars win.
     if env_file is not None and Path(env_file).is_file():
         file_values = {k: v for k, v in dotenv_values(env_file).items() if v is not None}
     real = os.environ if environ is None else environ
@@ -150,4 +155,5 @@ def configuration_report(env_file: Path | None | object = _DEFAULT, environ: Map
         file_values = {k: v for k, v in dotenv_values(env_file).items() if v is not None}
     real = os.environ if environ is None else environ
     merged = {**file_values, **real}
+    # Expose only whether each known variable is present, never its value.
     return {name: name in merged and (merged[name].strip() != "" or name == "DB_PASSWORD") for name in ALL_VARS}

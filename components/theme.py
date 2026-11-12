@@ -5,6 +5,7 @@ import streamlit as st
 
 
 _CSS = """
+/* Shared design tokens and Streamlit component styling for the app. */
 <style>
 :root {
   --fi-bg:#121514;
@@ -174,4 +175,5 @@ a:hover { color:#E2B36F; }
 
 
 def apply_theme() -> None:
+    """Inject the shared visual theme into the current Streamlit page."""
     st.markdown(_CSS, unsafe_allow_html=True)

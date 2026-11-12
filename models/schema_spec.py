@@ -10,17 +10,20 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ForeignKeySpec:
+    """Describe one expected local-to-reference column relationship."""
     table: str
     column: str
     ref_table: str
     ref_column: str
 
     def label(self) -> str:
+        """Format the relationship for health reports and logs."""
         return f"{self.table}.{self.column} -> {self.ref_table}.{self.ref_column}"
 
 
 @dataclass(frozen=True)
 class SchemaSpec:
+    """Collect expected tables, views, and relationships in one immutable spec."""
     tables: dict[str, tuple[str, ...]]
     views: tuple[str, ...]
     foreign_keys: tuple[ForeignKeySpec, ...]

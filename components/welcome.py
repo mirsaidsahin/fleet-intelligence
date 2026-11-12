@@ -7,6 +7,7 @@ SEEN_KEY = "fi_welcome_seen"
 
 
 def _mark_seen() -> None:
+    """Remember that this session has dismissed the welcome dialog."""
     st.session_state[SEEN_KEY] = True
 
 

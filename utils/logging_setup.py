@@ -28,12 +28,14 @@ class RedactingFormatter(logging.Formatter):
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a logger under the application's shared namespace."""
     return logging.getLogger(f"{LOGGER_ROOT}.{name}")
 
 
 def configure_logging(level: str = "INFO", secrets: Iterable[str] = (), log_dir: Path | None = None) -> None:
     """Idempotent setup: safe to call again after a Streamlit rerun."""
     logger = logging.getLogger(LOGGER_ROOT)
+    # Rebuild only our own handlers so Streamlit reruns do not duplicate logs.
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
     logger.propagate = False
     for handler in list(logger.handlers):
@@ -42,6 +44,7 @@ def configure_logging(level: str = "INFO", secrets: Iterable[str] = (), log_dir:
             handler.close()
 
     formatter = RedactingFormatter(_FORMAT, secrets)
+    # Console output remains available if the project's log folder is read-only.
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     directory = log_dir or (PROJECT_ROOT / "logs")
     try:

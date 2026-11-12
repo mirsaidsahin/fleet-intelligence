@@ -26,6 +26,7 @@ def kv_card(title: str, rows: list[tuple[str, str, str]]) -> None:
 
 
 def connection_card(report: HealthReport | None, settings: Settings | None) -> None:
+    """Show connection state, target, latency, and most recent check times."""
     if report is None:
         kv_card("Database connection", [("State", "Not configured", "fi-warn-text")])
         return
@@ -50,6 +51,7 @@ def connection_card(report: HealthReport | None, settings: Settings | None) -> N
 
 
 def schema_card(report: HealthReport | None) -> None:
+    """Summarize how many expected database objects were found."""
     if report is None or report.schema is None:
         kv_card("Schema check", [("Result", "Not run", "fi-warn-text")])
         return
@@ -67,6 +69,7 @@ def schema_card(report: HealthReport | None) -> None:
 
 
 def schema_details(report: HealthReport | None) -> None:
+    """List missing schema objects and foreign-key relationships."""
     if report is None or report.schema is None:
         st.info("The schema check has not run yet.")
         return
@@ -75,6 +78,7 @@ def schema_details(report: HealthReport | None) -> None:
         st.error(s.error)
         return
     missing_cols = dict(s.missing_columns)
+    # Build one row per expected table and view for a consistent report.
     rows = []
     for table, columns in EXPECTED_SCHEMA.tables.items():
         if table in s.missing_tables:

@@ -22,6 +22,7 @@ from services.image_assets import driver_image, truck_image
 from utils.db import DatabaseUnavailableError, QueryError
 
 FINLAND_NODES = {
+    # Fixed illustrative coordinates keep the demo map independent of geocoding.
     "Helsinki": (24.94, 60.17), "Riihimäki": (24.77, 60.74),
     "Tampere": (23.76, 61.50), "Turku": (22.27, 60.45),
     "Oulu": (25.47, 65.01), "Jyväskylä": (25.75, 62.24),
@@ -49,12 +50,14 @@ def _image_data_uri(path: str, modified_ns: int) -> str:
 
 
 def _asset_uri(path: Path | None) -> str | None:
+    """Return an image's cached data URI when its local file exists."""
     if path is None or not path.is_file():
         return None
     return _image_data_uri(str(path), path.stat().st_mtime_ns)
 
 
 def _truck_tooltip(row: dict, progress: float, truck_color: str) -> str:
+    """Build an escaped hover card for a truck, driver, route, and cargo."""
     brand_value = row.get("BrandID")
     brand_id = int(brand_value) if pd.notna(brand_value) else None
     truck_src = _asset_uri(truck_image(int(row["TruckID"]), brand_id, "tractor"))
@@ -96,6 +99,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
     truck_colors: dict[str, str] = {}
     route_labels: dict[str, str] = {}
     if not routes.empty:
+        # Draw route-network lanes first so truck markers remain easy to see.
         for row in routes.to_dict("records"):
             start, end = row["DepartureCity"], row["ArrivalCity"]
             if start not in FINLAND_NODES or end not in FINLAND_NODES:
@@ -114,6 +118,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
     active_records = active_jobs.to_dict("records") if not active_jobs.empty else []
     plotted_jobs: list[dict] = []
     for row in active_records:
+        # Skip unsupported city pairs instead of placing markers at false coordinates.
         start, end = row.get("DepartureCity"), row.get("ArrivalCity")
         if start not in FINLAND_NODES or end not in FINLAND_NODES:
             continue
@@ -156,6 +161,7 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
                 tooltip=city,
             ).add_to(map_view)
     if plotted_jobs:
+        # Handle selection in Leaflet so clicking a marker does not rerun Streamlit.
         import json
 
         route_lines_json = json.dumps(route_line_refs)
@@ -233,6 +239,7 @@ def render_fleet_map_panel(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> N
 
 
 def _dispatch_view(repo: DashboardRepository) -> None:
+    """Show searchable open assignments and export the current filtered view."""
     st.subheader("Live dispatch board")
     st.caption("Open jobs from MySQL, grouped by current operational status.")
     frame = pd.DataFrame(repo.dispatch_board())
@@ -260,6 +267,7 @@ def _dispatch_view(repo: DashboardRepository) -> None:
 
 
 def _driver_view(repo: DashboardRepository) -> None:
+    """Summarize completed driver work and show an on-time comparison chart."""
     st.subheader("Driver performance")
     st.caption("Completed jobs, revenue and distance are aggregated from recorded job data."
                " On-time means the recorded finish is within the route estimate.")
@@ -297,6 +305,7 @@ def _driver_view(repo: DashboardRepository) -> None:
 
 
 ctx = get_app_context()
+# Reuse the top-bar report so page health details match the displayed status.
 report = current_report(ctx)
 page_header("Operations Command Center", "One live view for fleet readiness, route activity and dispatch risks.")
 
@@ -311,6 +320,7 @@ if ctx.database is None:
     st.stop()
 
 try:
+    # Load the dashboard's independent datasets once for this page run.
     repo = DashboardRepository(ctx.database)
     stats = repo.summary()
     trucks = pd.DataFrame(repo.truck_statuses())
