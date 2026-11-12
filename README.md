@@ -26,7 +26,7 @@ AI service or API key.
 
 - [Mir Said Sahin](https://github.com/mirsaidsahin) — Project owner
 - Teammate: [amk1005799Heli](https://github.com/amk1005799Heli)
-- Teammate : ” https://github.com/MdAfsarhossain123 “
+- [Md Afsar Hossain](https://github.com/MdAfsarhossain123) — Teammate
 
 ## Setup
 
