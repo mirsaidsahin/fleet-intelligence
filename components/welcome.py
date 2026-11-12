@@ -12,8 +12,14 @@ def _mark_seen() -> None:
 
 @st.dialog("Welcome to Fleet Intelligence", icon=":material/local_shipping:", on_dismiss=_mark_seen)
 def _welcome_dialog() -> None:
-    st.write("Your operations overview for fleet status, dispatch work, drivers, routes, and reports.")
-    st.info("Truck positions on the map are illustrative points along routes, not live GPS locations.", icon=":material/info:")
+    st.subheader("Fleet and dispatch, at a glance")
+    st.write("Monitor vehicle availability, review open jobs, check routes, and follow driver performance from one workspace.")
+    st.info(
+        "Illustrative content: map positions and truck/driver photos are for demonstration, not live tracking. "
+        "This non-commercial school project uses brand names and logos only to identify vehicle makes; "
+        "no ownership is claimed. Trademarks belong to their respective owners.",
+        icon=":material/info:",
+    )
     st.caption("Use the navigation on the left to explore the project. Database status and refresh time are shown at the top.")
     if st.button("Get started", type="primary", width="stretch", key="fi_welcome_dismiss"):
         _mark_seen()
