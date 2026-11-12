@@ -100,3 +100,30 @@ def test_rejects_unsupported_entity_before_opening_transaction(operation):
             repo.delete("unknown", 1)
 
     assert db.executed == []
+
+
+@pytest.mark.parametrize("table,children", [
+    ("trucks", {"jobs": 1}),
+    ("drivers", {"trucks": 1, "jobs": 1, "routes": 1, "drivers": 1}),
+    ("jobs", {}),
+    ("brands", {"trucks": 1}),
+    ("garages", {"trucks": 1}),
+    ("routes", {"jobs": 1, "cargos": 1}),
+    ("cargos", {"jobs": 1}),
+    ("customers", {"jobs": 1}),
+])
+def test_linked_record_impact_counts_cover_all_entity_references(table, children):
+    class CountingDatabase:
+        def __init__(self):
+            self.queries = []
+
+        def fetch_one(self, sql, params):
+            self.queries.append((sql, params))
+            return {"total": 1}
+
+    db = CountingDatabase()
+    result = FleetRepository(db).linked_record_counts(table, 23)
+
+    assert result == children
+    assert len(db.queries) == len(children)
+    assert all(params == {"record_id": 23} for _, params in db.queries)

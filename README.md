@@ -16,6 +16,8 @@ the app, with system checks and filtered data exports available in Reports & Sys
   customers, plus driver record management.
 - Rule-based checks for jobs that need dispatch review, database/schema status panels,
   searchable reports and CSV downloads.
+- Job status transition rules, overlapping truck/driver assignment checks, and linked-record
+  impact warnings before deletion.
 - Local image uploads for drivers, brands and trucks, with a shared dark interface using
   warm amber, muted green and steel tones.
 - Form validation for required fields, non-negative numeric values, and consistent job dates,
@@ -56,9 +58,9 @@ More detail is in [docs/VALIDATION_AND_ERRORS.md](docs/VALIDATION_AND_ERRORS.md)
 ## Tests
 
 `python -m pytest` from the project root. The suite covers configuration, validation, database
-error mapping, SQL safety, fleet status rules, image lookup/upload/replacement/rejection, schema
-checks, and create/update/delete repository behavior across all eight entities. Tests use fakes
-and never read `.env` or connect to MySQL.
+error mapping, SQL safety, fleet status rules, image handling, CRUD behavior for all eight
+entities, SQLite repository integration, and Streamlit AppTest checks for delete safeguards.
+Tests use fakes or temporary in-memory databases and never read `.env` or contact production MySQL.
 
 ## Structure
 

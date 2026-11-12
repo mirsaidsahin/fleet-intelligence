@@ -39,6 +39,23 @@ Values from the 2026-10-29 dump, as a hand check for Phase 5: 2 In Transit (truc
 - Driver on-time rate compares each completed job's recorded `EndDate` with `StartDate` plus
   the route's `EstimatedHours`; the scorecard also sums recorded revenue and route distance.
 
+## Job workflow and assignment checks
+
+- `Pending` may remain Pending, move to `In Transit`, or become `Cancelled`.
+- `In Transit` may remain In Transit, move to `Completed`, or become `Cancelled`.
+- `Completed` and `Cancelled` are terminal states in the application workflow.
+- Before saving a Pending or In Transit job, the form checks other open jobs that share its
+  truck or driver and whose estimated time windows overlap. The job being edited is excluded.
+- For an In Transit job, the estimated window extends through the current application time if
+  the estimate has already elapsed. Jobs without a start time cannot be placed on the schedule;
+  an undated Pending job is therefore not compared with other Pending windows.
+- These checks are advisory protection against normal user conflicts. The database remains the
+  final authority for foreign keys and any concurrent changes made after the check.
+
+Before deletion, the app counts inbound references from related tables and blocks deletion
+while any remain. MySQL foreign-key constraints remain the final protection if data changes
+between the preview and the attempted delete.
+
 ## Trailer image convention
 
 The database stores no trailers. The tractor-with-trailer image is a visual convention only:

@@ -53,6 +53,46 @@ class FleetRepository:
         with self.db.transaction() as conn:
             conn.execute(text(f"DELETE FROM {table} WHERE {self.TABLES[table][0]}=:record_id"), {"record_id": record_id})
 
+    def assignment_conflicts(self, values: Mapping[str, Any], exclude_job_id: int | None = None) -> list[dict[str, Any]]:
+        """Find active jobs overlapping the selected truck or driver assignment."""
+        if values.get("Status") not in ("Pending", "In Transit"):
+            return []
+        route_id = values.get("RouteID")
+        route = self.db.fetch_one("SELECT EstimatedHours FROM routes WHERE RouteID=:route_id", {"route_id": route_id})
+        if route is None:
+            return []  # Referential validation/MySQL will report a missing route on save.
+        rows = self.db.fetch_all("""SELECT j.JobID, j.Status, j.StartDate, j.EndDate,
+            j.TruckID, j.DriverID, r.EstimatedHours
+            FROM jobs j JOIN routes r ON r.RouteID=j.RouteID
+            WHERE j.Status IN ('Pending','In Transit')
+              AND (j.TruckID=:truck_id OR j.DriverID=:driver_id)
+              AND (:exclude_id IS NULL OR j.JobID<>:exclude_id)""",
+            {"truck_id": values.get("TruckID"), "driver_id": values.get("DriverID"), "exclude_id": exclude_job_id})
+        from services.workflow import find_assignment_conflicts
+        return find_assignment_conflicts(values, rows, float(route["EstimatedHours"]))
+
+    def linked_record_counts(self, table: str, record_id: int) -> dict[str, int]:
+        """Count rows that reference a record before delete; FK rules remain authoritative."""
+        references = {
+            "trucks": {"jobs": ("TruckID",)},
+            "drivers": {"trucks": ("AssignedDriverID",), "jobs": ("DriverID",), "routes": ("SpecialistDriverID",), "drivers": ("MentorID",)},
+            "jobs": {},
+            "brands": {"trucks": ("BrandID",)},
+            "garages": {"trucks": ("GarageID",)},
+            "routes": {"jobs": ("RouteID",), "cargos": ("DefaultRouteID",)},
+            "cargos": {"jobs": ("CargoID",)},
+            "customers": {"jobs": ("CustomerID",)},
+        }
+        self._table(table)
+        from sqlalchemy import text
+        counts: dict[str, int] = {}
+        for child_table, columns in references[table].items():
+            predicates = " OR ".join(f"{column}=:record_id" for column in columns)
+            query = text(f"SELECT COUNT(*) AS total FROM {child_table} WHERE {predicates}")
+            row = self.db.fetch_one(str(query), {"record_id": record_id})
+            counts[child_table] = int((row or {}).get("total", 0))
+        return counts
+
     @classmethod
     def _table(cls, table: str) -> None:
         if table not in cls.TABLES:

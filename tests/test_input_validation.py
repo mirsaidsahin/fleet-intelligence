@@ -29,3 +29,16 @@ def test_optional_values_and_valid_job_dates_pass():
 
 def test_unknown_record_type_is_rejected():
     assert validate_record("secret_table", {}, FIELDS) == ["Unsupported record type."]
+
+
+def test_job_status_update_must_follow_allowed_workflow():
+    values = {name: None for name, _, _ in FIELDS["jobs"]}
+    values.update(Status="Completed")
+    errors = validate_record("jobs", values, current={"Status": "Pending"})
+    assert any("cannot move from Pending to Completed" in error for error in errors)
+
+
+def test_valid_job_status_transition_passes_validation():
+    values = {name: None for name, _, _ in FIELDS["jobs"]}
+    values.update(Status="In Transit")
+    assert validate_record("jobs", values, current={"Status": "Pending"}) == []

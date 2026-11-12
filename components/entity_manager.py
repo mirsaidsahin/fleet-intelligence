@@ -67,9 +67,35 @@ def _read_form(repo: FleetRepository, table: str, current: dict | None) -> dict:
     return values
 
 
+def delete_record_controls(title: str, record_id: int, linked_counts: dict[str, int], key: str) -> bool:
+    """Render a linked-record impact warning and explicit delete confirmation."""
+    linked = {name: count for name, count in linked_counts.items() if count}
+    total_linked = sum(linked.values())
+    if linked:
+        st.warning("Deletion is blocked by linked records: " + ", ".join(
+            f"{count} {name}" for name, count in linked.items()
+        ) + ". Remove or reassign them first.")
+    else:
+        st.caption("No linked records were found.")
+    confirm = st.checkbox(f"I confirm deletion of {title.lower()} record #{record_id}.", key=f"confirm_{key}")
+    return st.button("Delete", key=f"delete_{key}", disabled=(not confirm or total_linked > 0))
+
+
+def record_change_summary(title: str, operation: str, record_id: int | None = None, changed_fields: list[str] | None = None) -> str:
+    """Describe a completed record change for the post-rerun success notice."""
+    subject = f"{title.lower()} record" + (f" #{record_id}" if record_id is not None else "")
+    summary = f"{operation.capitalize()} {subject}."
+    if operation == "Updated" and changed_fields:
+        summary += " Changed: " + ", ".join(changed_fields) + "."
+    return summary
+
+
 def entity_manager(database, table: str, title: str) -> None:
     repo = FleetRepository(database)
     st.subheader(title)
+    notice_key = f"record_notice_{table}"
+    if notice_key in st.session_state:
+        st.success(st.session_state.pop(notice_key))
     try:
         rows = repo.rows(table)
         if not rows:
@@ -157,14 +183,25 @@ def entity_manager(database, table: str, title: str) -> None:
                 values = _read_form(repo, table, current)
                 submitted = st.form_submit_button("Save record", type="primary", disabled=(mode == "Edit" and current is None))
             if submitted:
-                problems = validate_record(table, values, FIELDS)
+                problems = validate_record(table, values, FIELDS, current if table == "jobs" else None)
+                conflicts = []
+                if table == "jobs" and not problems:
+                    conflicts = repo.assignment_conflicts(values, int(current[key_col]) if current else None)
+                    if conflicts:
+                        refs = ", ".join(f"#{job['JobID']} ({job['Status']})" for job in conflicts)
+                        problems.append(f"This truck or driver has an overlapping open job: {refs}.")
                 if problems:
                     for problem in problems:
                         st.error(problem)
                 else:
                     try:
                         repo.save(table, values, int(current[key_col]) if mode == "Edit" and current else None)
-                        st.success("Record saved.")
+                        if current:
+                            changed = [name for name in values if current.get(name) != values[name]]
+                            summary = record_change_summary(title, "Updated", int(current[key_col]), changed)
+                        else:
+                            summary = record_change_summary(title, "Created")
+                        st.session_state[notice_key] = summary
                         st.rerun()
                     except (QueryError, DatabaseUnavailableError) as exc:
                         st.error(str(exc))
@@ -173,11 +210,10 @@ def entity_manager(database, table: str, title: str) -> None:
                 st.info("There are no records to delete.")
             else:
                 delete_id = st.selectbox("Record to delete", options, format_func=lambda x: f"#{x}", key=f"delete_id_{table}")
-                confirm = st.checkbox("I understand that linked records may prevent deletion.", key=f"confirm_delete_{table}")
-                if st.button("Delete", key=f"delete_{table}", disabled=not confirm):
+                if delete_record_controls(title, int(delete_id), repo.linked_record_counts(table, int(delete_id)), table):
                     try:
                         repo.delete(table, int(delete_id))
-                        st.success("Record deleted.")
+                        st.session_state[notice_key] = record_change_summary(title, "Deleted", int(delete_id))
                         st.rerun()
                     except (QueryError, DatabaseUnavailableError) as exc:
                         st.error(str(exc))
