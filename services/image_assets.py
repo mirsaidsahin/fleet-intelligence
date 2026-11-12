@@ -1,6 +1,8 @@
 """Resolve optional local portraits and vehicle images without bundling third-party art."""
 from pathlib import Path
 from io import BytesIO
+import os
+from tempfile import NamedTemporaryFile
 
 from PIL import Image, UnidentifiedImageError
 
@@ -72,8 +74,17 @@ def save_uploaded_image(category: str, entity_id: int, data: bytes, visual: str 
         raise ValueError("Unsupported image category")
 
     target.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with NamedTemporaryFile(mode="wb", dir=target.parent, prefix=f".{target.stem}.", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(data)
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
     for old in previous:
         if old != target and old.is_file():
             old.unlink()
-    target.write_bytes(data)
     return target

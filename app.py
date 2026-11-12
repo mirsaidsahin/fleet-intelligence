@@ -8,6 +8,7 @@ from components.bootstrap import get_app_context
 from components.health_panels import configuration_panel
 from components.status_bar import render_top_bar
 from components.theme import apply_theme
+from components.welcome import show_welcome
 from utils.version import APP_VERSION, BUILD_PHASE
 
 st.set_page_config(
@@ -31,6 +32,7 @@ navigation = st.navigation(
 )
 
 render_top_bar(ctx)
+show_welcome()
 
 with st.sidebar:
     st.caption(f"Version {APP_VERSION}, {BUILD_PHASE}")

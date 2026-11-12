@@ -9,6 +9,8 @@ the app, with system checks and filtered data exports available in Reports & Sys
 
 - A Command Center with fleet counts, dispatch attention items, driver performance and
   recent operating activity.
+- A first-run welcome dialog that introduces the main sections and clarifies that map positions
+  are illustrative rather than live GPS data.
 - An interactive route map with truck and driver photo previews. Illustrative truck points
   are randomized along their assigned routes on page refresh and every ten minutes; they
   are not GPS locations.
@@ -19,7 +21,8 @@ the app, with system checks and filtered data exports available in Reports & Sys
 - Job status transition rules, overlapping truck/driver assignment checks, and linked-record
   impact warnings before deletion.
 - Local image uploads for drivers, brands and trucks, with a shared dark interface using
-  warm amber, muted green and steel tones.
+  warm amber, muted green and steel tones. Image replacements are written atomically so a failed
+  upload does not remove the previous image.
 - Form validation for required fields, non-negative numeric values, and consistent job dates,
   with database errors translated into short, actionable messages.
 

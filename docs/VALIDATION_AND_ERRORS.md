@@ -46,8 +46,15 @@ write is rejected.
 ## Image uploads
 
 Uploads are limited to 10 MB and supported formats. The image service validates the entity,
-ID, visual option, file signature, and that the file can be verified as a real PNG or JPEG before saving into the local asset folders. Invalid
-files and filesystem failures are caught at the UI boundary and shown as actionable errors.
+ID, visual option, file signature, and that the file can be verified as a real PNG or JPEG
+before saving into the local asset folders. New images are written to a temporary file and
+atomically moved into place before older file formats are removed, preserving the previous
+image if the write fails. The UI keeps its success notice visible after the Streamlit rerun.
+Invalid files and filesystem failures are caught at the UI boundary and shown as actionable
+errors.
+
+The welcome dialog appears once per Streamlit session and can be dismissed. It points users to
+the main areas of the app and explicitly labels map positions as illustrative.
 
 ## Automated checks
 

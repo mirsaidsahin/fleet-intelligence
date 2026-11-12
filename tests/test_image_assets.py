@@ -73,6 +73,24 @@ def test_driver_lookup_checks_supported_extensions_in_order(tmp_path, monkeypatc
     assert image_assets.driver_image(12) is None
 
 
+def test_failed_atomic_image_replacement_preserves_previous_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(image_assets, "PROJECT_ROOT", tmp_path)
+    folder = tmp_path / "assets" / "drivers"
+    folder.mkdir(parents=True)
+    old = folder / "21.jpg"
+    old.write_bytes(b"old image")
+
+    def fail_replace(_source, _target):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(image_assets.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="simulated disk failure"):
+        image_assets.save_uploaded_image("drivers", 21, image_bytes())
+
+    assert old.read_bytes() == b"old image"
+    assert list(folder.iterdir()) == [old]
+
+
 @pytest.mark.parametrize(
     ("category", "entity_id", "data", "visual"),
     [

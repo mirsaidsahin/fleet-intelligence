@@ -96,6 +96,9 @@ def entity_manager(database, table: str, title: str) -> None:
     notice_key = f"record_notice_{table}"
     if notice_key in st.session_state:
         st.success(st.session_state.pop(notice_key))
+    image_notice_key = f"image_notice_{table}"
+    if image_notice_key in st.session_state:
+        st.success(st.session_state.pop(image_notice_key))
     try:
         rows = repo.rows(table)
         if not rows:
@@ -163,7 +166,7 @@ def entity_manager(database, table: str, title: str) -> None:
                 if st.button("Save image", key=f"save_image_{table}_{selected_id}", disabled=upload is None):
                     try:
                         saved = save_uploaded_image(table, selected_id, upload.getvalue(), visual if table == "trucks" else None)
-                        st.success(f"Image saved: {saved.name}")
+                        st.session_state[image_notice_key] = f"Image saved: {saved.name}"
                         st.rerun()
                     except (ValueError, OSError) as exc:
                         st.error(str(exc))
