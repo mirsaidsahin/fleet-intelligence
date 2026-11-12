@@ -5,7 +5,19 @@ from datetime import datetime
 from typing import Any, Mapping
 
 
-def validate_record(table: str, values: Mapping[str, Any], fields: Mapping[str, list[tuple[str, str, bool]]]) -> list[str]:
+FIELDS = {
+    "trucks": [("BrandID","brand",True),("Model","text",False),("ProductionYear","int",True),("RequiredLicense","license",False),("PlateNumber","text",False),("Mileage","int",True),("GarageID","garage",True),("AssignedDriverID","driver",True)],
+    "drivers": [("FirstName","text",False),("LastName","text",False),("LicenseType","license",False),("ExperienceYears","int",False),("Phone","text",True),("MentorID","driver",True)],
+    "jobs": [("TruckID","truck",False),("DriverID","driver",False),("CargoID","cargo",False),("RouteID","route",False),("StartDate","datetime",True),("Status","status",False),("EndDate","datetime",True),("CustomerID","customer",True),("RevenueEUR","decimal",True)],
+    "brands": [("BrandName","text",False),("Country","text",True)],
+    "garages": [("City","text",False),("Capacity","int",False)],
+    "routes": [("DepartureCity","text",False),("ArrivalCity","text",False),("DistanceKm","int",False),("EstimatedHours","decimal",False),("SpecialistDriverID","driver",True)],
+    "cargos": [("CargoName","text",False),("WeightKg","int",False),("ValueEUR","decimal",False),("DefaultRouteID","route",True)],
+    "customers": [("CompanyName","text",False),("ContactPerson","text",True),("Phone","text",True),("Address","text",True)],
+}
+
+
+def validate_record(table: str, values: Mapping[str, Any], fields: Mapping[str, list[tuple[str, str, bool]]] = FIELDS) -> list[str]:
     """Return actionable validation messages for a record; an empty list is valid."""
     if table not in fields:
         return ["Unsupported record type."]

@@ -56,8 +56,9 @@ More detail is in [docs/VALIDATION_AND_ERRORS.md](docs/VALIDATION_AND_ERRORS.md)
 ## Tests
 
 `python -m pytest` from the project root. The suite covers configuration, validation, database
-error mapping, SQL safety, fleet status rules, image handling, schema checks, and repository
-behavior. Tests use fakes and never read `.env` or connect to MySQL.
+error mapping, SQL safety, fleet status rules, image lookup/upload/replacement/rejection, schema
+checks, and create/update/delete repository behavior across all eight entities. Tests use fakes
+and never read `.env` or connect to MySQL.
 
 ## Structure
 

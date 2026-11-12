@@ -41,5 +41,6 @@ files and filesystem failures are caught at the UI boundary and shown as actiona
 
 Run `python -m pytest` from the project root. The unit tests exercise validation rules,
 configuration safety, error translation, repository SQL parameterization, status rules, image
-uploads, and schema comparison. Tests use fakes and temporary directories; they do not require
-the production database or local environment file.
+lookup/upload/replacement/rejection, and schema comparison. Create, update, and delete SQL is
+checked for every supported entity table. Tests use fakes and temporary directories; they do
+not require the production database or local environment file.

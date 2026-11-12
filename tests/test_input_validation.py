@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from components.entity_manager import FIELDS
-from services.input_validation import validate_record
+from services.input_validation import FIELDS, validate_record
 
 
 @pytest.mark.parametrize("table,values,expected", [

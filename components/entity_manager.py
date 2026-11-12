@@ -8,20 +8,10 @@ import streamlit as st
 
 from repositories.fleet import FleetRepository
 from services.image_assets import brand_image, driver_image, save_uploaded_image, truck_image
-from services.input_validation import validate_record
+from services.input_validation import FIELDS, validate_record
 from services.visual_config import VISUAL_CONVENTION_NOTE, choose_visual_config
 from utils.db import DatabaseUnavailableError, QueryError
 
-FIELDS = {
-    "trucks": [("BrandID","brand",True),("Model","text",False),("ProductionYear","int",True),("RequiredLicense","license",False),("PlateNumber","text",False),("Mileage","int",True),("GarageID","garage",True),("AssignedDriverID","driver",True)],
-    "drivers": [("FirstName","text",False),("LastName","text",False),("LicenseType","license",False),("ExperienceYears","int",False),("Phone","text",True),("MentorID","driver",True)],
-    "jobs": [("TruckID","truck",False),("DriverID","driver",False),("CargoID","cargo",False),("RouteID","route",False),("StartDate","datetime",True),("Status","status",False),("EndDate","datetime",True),("CustomerID","customer",True),("RevenueEUR","decimal",True)],
-    "brands": [("BrandName","text",False),("Country","text",True)],
-    "garages": [("City","text",False),("Capacity","int",False)],
-    "routes": [("DepartureCity","text",False),("ArrivalCity","text",False),("DistanceKm","int",False),("EstimatedHours","decimal",False),("SpecialistDriverID","driver",True)],
-    "cargos": [("CargoName","text",False),("WeightKg","int",False),("ValueEUR","decimal",False),("DefaultRouteID","route",True)],
-    "customers": [("CompanyName","text",False),("ContactPerson","text",True),("Phone","text",True),("Address","text",True)],
-}
 LOOKUPS = {
     "brand": ("brands","BrandName"), "garage": ("garages","City"), "driver": ("drivers","FirstName"),
     "truck": ("trucks","PlateNumber"), "cargo": ("cargos","CargoName"), "route": ("routes","DepartureCity"),

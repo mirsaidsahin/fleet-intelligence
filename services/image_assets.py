@@ -1,5 +1,8 @@
 """Resolve optional local portraits and vehicle images without bundling third-party art."""
 from pathlib import Path
+from io import BytesIO
+
+from PIL import Image, UnidentifiedImageError
 
 from utils.config import PROJECT_ROOT
 
@@ -33,7 +36,7 @@ def truck_image(truck_id: int, brand_id: int | None, visual: str) -> Path | None
 
 def save_uploaded_image(category: str, entity_id: int, data: bytes, visual: str | None = None) -> Path:
     """Validate image bytes and save to the documented local asset convention."""
-    if not isinstance(entity_id, int) or entity_id < 1:
+    if type(entity_id) is not int or entity_id < 1:
         raise ValueError("Invalid record ID")
     if not data or len(data) > 10 * 1024 * 1024:
         raise ValueError("Choose an image smaller than 10 MB")
@@ -43,6 +46,13 @@ def save_uploaded_image(category: str, entity_id: int, data: bytes, visual: str 
         extension = ".jpg"
     else:
         raise ValueError("Only valid PNG and JPEG images are supported")
+    try:
+        with Image.open(BytesIO(data)) as image:
+            if image.format != ("PNG" if extension == ".png" else "JPEG"):
+                raise ValueError("Image content does not match its file format")
+            image.verify()
+    except (UnidentifiedImageError, OSError, SyntaxError) as exc:
+        raise ValueError("The selected file is not a valid image") from exc
 
     root = PROJECT_ROOT / "assets"
     if category == "drivers":

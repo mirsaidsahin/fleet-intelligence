@@ -61,3 +61,42 @@ def test_empty_write_is_rejected():
     with pytest.raises(ValueError):
         FleetRepository(db).save("brands", {})
     assert db.executed == []
+
+
+@pytest.mark.parametrize("table,primary_key,column,value", [
+    ("trucks", "TruckID", "Model", "FH"),
+    ("drivers", "DriverID", "FirstName", "Ada"),
+    ("jobs", "JobID", "Status", "Pending"),
+    ("brands", "BrandID", "BrandName", "Volvo"),
+    ("garages", "GarageID", "City", "Turku"),
+    ("routes", "RouteID", "DepartureCity", "Turku"),
+    ("cargos", "CargoID", "CargoName", "Parts"),
+    ("customers", "CustomerID", "CompanyName", "Example Ltd"),
+])
+def test_create_update_and_delete_are_parameterized_for_every_entity(table, primary_key, column, value):
+    db = FakeDatabase()
+    repo = FleetRepository(db)
+
+    repo.save(table, {column: value})
+    repo.save(table, {column: value}, record_id=17)
+    repo.delete(table, 17)
+
+    assert db.executed == [
+        (f"INSERT INTO {table} ({column}) VALUES (:{column})", {column: value}),
+        (f"UPDATE {table} SET {column}=:{column} WHERE {primary_key}=:record_id", {column: value, "record_id": 17}),
+        (f"DELETE FROM {table} WHERE {primary_key}=:record_id", {"record_id": 17}),
+    ]
+
+
+@pytest.mark.parametrize("operation", ["save", "delete"])
+def test_rejects_unsupported_entity_before_opening_transaction(operation):
+    db = FakeDatabase()
+    repo = FleetRepository(db)
+
+    with pytest.raises(ValueError, match="Unsupported table"):
+        if operation == "save":
+            repo.save("unknown", {"Name": "x"})
+        else:
+            repo.delete("unknown", 1)
+
+    assert db.executed == []
