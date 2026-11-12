@@ -8,6 +8,7 @@ import streamlit as st
 
 from repositories.fleet import FleetRepository
 from services.image_assets import brand_image, driver_image, save_uploaded_image, truck_image
+from services.input_validation import validate_record
 from services.visual_config import VISUAL_CONVENTION_NOTE, choose_visual_config
 from utils.db import DatabaseUnavailableError, QueryError
 
@@ -166,10 +167,10 @@ def entity_manager(database, table: str, title: str) -> None:
                 values = _read_form(repo, table, current)
                 submitted = st.form_submit_button("Save record", type="primary", disabled=(mode == "Edit" and current is None))
             if submitted:
-                missing = [name for name, kind, nullable in FIELDS[table]
-                           if not nullable and kind == "text" and not str(values.get(name) or "").strip()]
-                if missing:
-                    st.error("Required fields are empty: " + ", ".join(missing))
+                problems = validate_record(table, values, FIELDS)
+                if problems:
+                    for problem in problems:
+                        st.error(problem)
                 else:
                     try:
                         repo.save(table, values, int(current[key_col]) if mode == "Edit" and current else None)

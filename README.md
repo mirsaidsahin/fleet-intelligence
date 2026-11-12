@@ -18,6 +18,8 @@ the app, with system checks and filtered data exports available in Reports & Sys
   searchable reports and CSV downloads.
 - Local image uploads for drivers, brands and trucks, with a shared dark interface using
   warm amber, muted green and steel tones.
+- Form validation for required fields, non-negative numeric values, and consistent job dates,
+  with database errors translated into short, actionable messages.
 
 The app reads and writes the existing MySQL `omnilogistics` database; it does not need an
 AI service or API key.
@@ -41,9 +43,21 @@ AI service or API key.
 6. Check the connection and schema (read-only): `python scripts/verify_schema.py`
 7. Start the app: `streamlit run app.py`
 
+## Validation and error handling
+
+- Record forms check required text fields, non-negative numeric values, whole-number fields,
+  and ensure a job's end date is not earlier than its start date.
+- Database exceptions are logged for diagnosis while the interface displays safe messages
+  that do not expose raw SQL, host details, or credentials.
+- Image uploads are checked for supported format, size, entity type, and image convention.
+
+More detail is in [docs/VALIDATION_AND_ERRORS.md](docs/VALIDATION_AND_ERRORS.md).
+
 ## Tests
 
-`python -m pytest` from the project root. Tests use fakes and never read `.env` or connect to MySQL.
+`python -m pytest` from the project root. The suite covers configuration, validation, database
+error mapping, SQL safety, fleet status rules, image handling, schema checks, and repository
+behavior. Tests use fakes and never read `.env` or connect to MySQL.
 
 ## Structure
 
@@ -76,4 +90,5 @@ assets/         local images, ignored by git
 | `cryptography` package is missing | `pip install cryptography` (MySQL 8 sign-in needs it) |
 
 Definitions for the available schema and status/image conventions: `docs/DEFINITIONS.md`.
+Validation and error behavior: `docs/VALIDATION_AND_ERRORS.md`.
 Interface colors, type, spacing and accessibility rules: `docs/DESIGN.md`.
