@@ -1,3 +1,4 @@
+"""Workspace for editing driver records."""
 import streamlit as st
 
 from components.bootstrap import get_app_context

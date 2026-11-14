@@ -26,6 +26,7 @@ def compare_schema(inspector: Any, spec: SchemaSpec = EXPECTED_SCHEMA) -> Schema
     missing_columns: list[tuple[str, tuple[str, ...]]] = []
     fk_found = 0
     missing_fks: list[str] = []
+    fks_by_table: dict[str, set[tuple[str, str, str]]] = {}
 
     for table, columns in spec.tables.items():
         # Check required tables and columns first to report missing objects clearly.
@@ -37,24 +38,16 @@ def compare_schema(inspector: Any, spec: SchemaSpec = EXPECTED_SCHEMA) -> Schema
         absent = tuple(col for col in columns if col.lower() not in present)
         if absent:
             missing_columns.append((table, absent))
-
-    fks_by_table: dict[str, set[tuple[str, str, str]]] = {}
-    for table in spec.tables:
-        real_name = actual_tables.get(table.lower())
-        if real_name is None:
-            continue
         found: set[tuple[str, str, str]] = set()
         for fk in inspector.get_foreign_keys(real_name):
             for local, remote in zip(fk["constrained_columns"], fk["referred_columns"]):
                 found.add((local.lower(), fk["referred_table"].lower(), remote.lower()))
         fks_by_table[table] = found
 
-    fk_expected_checkable = 0
     for fk in spec.foreign_keys:
         # Skip foreign-key checks for missing tables already reported above.
         if fk.table not in fks_by_table:
-            continue  # the table itself is already reported as missing
-        fk_expected_checkable += 1
+            continue
         if (fk.column.lower(), fk.ref_table.lower(), fk.ref_column.lower()) in fks_by_table[fk.table]:
             fk_found += 1
         else:

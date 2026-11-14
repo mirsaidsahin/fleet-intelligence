@@ -1,3 +1,4 @@
+"""Workspace for editing trucks, brands, and garage records."""
 import streamlit as st
 
 from components.bootstrap import get_app_context
@@ -16,9 +17,9 @@ else:
         ("Garages", "LOCATIONS", "Review and manage your regional garage network."),
     ])
     st.markdown(f'<div class="fi-section-label">{active} workspace</div>', unsafe_allow_html=True)
-    if active == "Trucks":
-        entity_manager(ctx.database, "trucks", "Truck catalog")
-    elif active == "Brands":
-        entity_manager(ctx.database, "brands", "Manufacturer brands")
-    else:
-        entity_manager(ctx.database, "garages", "Garage locations")
+    table, title = {
+        "Trucks": ("trucks", "Truck catalog"),
+        "Brands": ("brands", "Manufacturer brands"),
+        "Garages": ("garages", "Garage locations"),
+    }[active]
+    entity_manager(ctx.database, table, title)

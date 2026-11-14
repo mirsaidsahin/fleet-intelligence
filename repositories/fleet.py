@@ -4,6 +4,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Mapping
 
+from sqlalchemy import text
+
+from models.status import OpenJob
+from services.fleet_status import classify
+from services.workflow import find_assignment_conflicts
+
 
 class FleetRepository:
     """Read and write allow-listed fleet tables using parameterized values."""
@@ -25,12 +31,12 @@ class FleetRepository:
 
     def rows(self, table: str, limit: int = 500) -> list[dict[str, Any]]:
         """Fetch recent rows from one supported table."""
-        self._table(table)
-        return self.db.fetch_all(f"SELECT * FROM {table} ORDER BY {self.TABLES[table][0]} DESC LIMIT :limit", {"limit": limit})
+        key = self._key(table)
+        return self.db.fetch_all(f"SELECT * FROM {table} ORDER BY {key} DESC LIMIT :limit", {"limit": limit})
 
     def options(self, table: str, key: str, label: str) -> list[dict[str, Any]]:
         """Fetch id/label pairs for relationship selectors."""
-        self._table(table)
+        self._key(table)
         cols = self.TABLES[table]
         if key not in cols or label not in cols:
             raise ValueError("Invalid option fields")
@@ -38,27 +44,23 @@ class FleetRepository:
 
     def save(self, table: str, values: Mapping[str, Any], record_id: int | None = None) -> None:
         """Insert a new row or update an existing row within one transaction."""
-        self._table(table)
-        columns = set(self.TABLES[table][1:])
-        if not values or set(values) - columns:
+        key = self._key(table)
+        if not values or set(values) - set(self.TABLES[table][1:]):
             raise ValueError("Invalid fields for this record")
+        names = list(values)
         if record_id is None:
-            names = list(values)
             sql = f"INSERT INTO {table} ({', '.join(names)}) VALUES ({', '.join(':'+n for n in names)})"
         else:
-            names = list(values)
-            sql = f"UPDATE {table} SET {', '.join(n + '=:'+n for n in names)} WHERE {self.TABLES[table][0]}=:record_id"
+            sql = f"UPDATE {table} SET {', '.join(n + '=:'+n for n in names)} WHERE {key}=:record_id"
             values = {**values, "record_id": record_id}
-        from sqlalchemy import text
         with self.db.transaction() as conn:
             conn.execute(text(sql), dict(values))
 
     def delete(self, table: str, record_id: int) -> None:
         """Delete one row; the database enforces foreign-key restrictions."""
-        self._table(table)
-        from sqlalchemy import text
+        key = self._key(table)
         with self.db.transaction() as conn:
-            conn.execute(text(f"DELETE FROM {table} WHERE {self.TABLES[table][0]}=:record_id"), {"record_id": record_id})
+            conn.execute(text(f"DELETE FROM {table} WHERE {key}=:record_id"), {"record_id": record_id})
 
     def assignment_conflicts(self, values: Mapping[str, Any], exclude_job_id: int | None = None) -> list[dict[str, Any]]:
         """Find active jobs overlapping the selected truck or driver assignment."""
@@ -75,7 +77,6 @@ class FleetRepository:
               AND (j.TruckID=:truck_id OR j.DriverID=:driver_id)
               AND (:exclude_id IS NULL OR j.JobID<>:exclude_id)""",
             {"truck_id": values.get("TruckID"), "driver_id": values.get("DriverID"), "exclude_id": exclude_job_id})
-        from services.workflow import find_assignment_conflicts
         return find_assignment_conflicts(values, rows, float(route["EstimatedHours"]))
 
     def linked_record_counts(self, table: str, record_id: int) -> dict[str, int]:
@@ -90,22 +91,21 @@ class FleetRepository:
             "cargos": {"jobs": ("CargoID",)},
             "customers": {"jobs": ("CustomerID",)},
         }
-        self._table(table)
-        from sqlalchemy import text
+        self._key(table)
         counts: dict[str, int] = {}
         # Count each known child relationship to explain blocked deletes in the UI.
         for child_table, columns in references[table].items():
             predicates = " OR ".join(f"{column}=:record_id" for column in columns)
-            query = text(f"SELECT COUNT(*) AS total FROM {child_table} WHERE {predicates}")
-            row = self.db.fetch_one(str(query), {"record_id": record_id})
+            row = self.db.fetch_one(f"SELECT COUNT(*) AS total FROM {child_table} WHERE {predicates}", {"record_id": record_id})
             counts[child_table] = int((row or {}).get("total", 0))
         return counts
 
     @classmethod
-    def _table(cls, table: str) -> None:
-        """Reject table names outside the repository's fixed allow-list."""
+    def _key(cls, table: str) -> str:
+        """Return the table's primary-key column, rejecting names outside the allow-list."""
         if table not in cls.TABLES:
             raise ValueError("Unsupported table")
+        return cls.TABLES[table][0]
 
 
 class DashboardRepository:
@@ -122,9 +122,6 @@ class DashboardRepository:
             (SELECT COUNT(*) FROM jobs WHERE Status='In Transit') AS in_transit,
             (SELECT COALESCE(SUM(RevenueEUR),0) FROM jobs WHERE Status='Completed') AS completed_revenue,
             (SELECT COUNT(*) FROM jobs WHERE Status='Pending' AND StartDate < :now) AS overdue""", {"now": datetime.now()}) or {}
-
-    def jobs_by_status(self) -> list[dict[str, Any]]:
-        return self.db.fetch_all("SELECT Status AS status, COUNT(*) AS total FROM jobs GROUP BY Status ORDER BY total DESC")
 
     def monthly_revenue(self) -> list[dict[str, Any]]:
         return self.db.fetch_all("SELECT DATE_FORMAT(StartDate, '%Y-%m') AS month, SUM(RevenueEUR) AS revenue FROM jobs WHERE Status='Completed' AND StartDate IS NOT NULL GROUP BY month ORDER BY month")
@@ -220,9 +217,6 @@ class DashboardRepository:
             ORDER BY CompletedJobs DESC, RevenueEUR DESC, Driver""")
 
     def truck_statuses(self) -> list[dict[str, Any]]:
-        from models.status import OpenJob
-        from services.fleet_status import classify
-
         rows = self.db.fetch_all("""SELECT t.TruckID, t.PlateNumber, b.BrandName, t.Model,
             j.JobID, j.Status, j.StartDate, r.EstimatedHours
             FROM trucks t LEFT JOIN brands b ON b.BrandID=t.BrandID

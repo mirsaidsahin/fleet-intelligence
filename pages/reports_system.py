@@ -1,11 +1,12 @@
 """System health details and downloadable operational reports."""
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from components.bootstrap import get_app_context
 from components.health_panels import configuration_panel, connection_card, schema_card, schema_details
 from components.placeholders import page_header
 from components.status_bar import current_report
+from components.tables import search_frame
 from repositories.fleet import FleetRepository
 from utils.db import DatabaseUnavailableError, QueryError
 from utils.version import APP_NAME, APP_VERSION, BUILD_PHASE
@@ -45,9 +46,7 @@ with reports_tab:
                     selected = st.multiselect("Job status", statuses, default=statuses)
                     frame = frame[frame["Status"].isin(selected)]
                 search = st.text_input("Filter report", placeholder="Search across the displayed fields")
-                if search.strip():
-                    mask = frame.astype(str).apply(lambda col: col.str.contains(search.strip(), case=False, na=False)).any(axis=1)
-                    frame = frame[mask]
+                frame = search_frame(frame, search)
             st.caption(f"{len(frame)} record(s) · maximum 500 per report")
             st.dataframe(frame, hide_index=True, width="stretch")
             st.download_button("Download CSV", data=frame.to_csv(index=False).encode("utf-8-sig"), file_name=f"fleet_{table}.csv", mime="text/csv", disabled=frame.empty)

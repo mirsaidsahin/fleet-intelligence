@@ -1,7 +1,7 @@
 """Builds the HealthReport shown in the status bar and System page."""
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from models.health import ConnectionStatus, HealthReport, SchemaCheckResult
 

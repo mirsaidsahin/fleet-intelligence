@@ -17,3 +17,8 @@ assets/brands/*
 !assets/brands/.gitkeep
 assets/trucks/*
 !assets/trucks/.gitkeep
+
+# Local OS and scratch files
+desktop.ini
+output/
+tmp/

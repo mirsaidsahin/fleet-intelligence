@@ -81,9 +81,8 @@ def _read_int(env: Mapping[str, str], name: str, default: int, low: int, high: i
     try:
         value = int(raw.strip())
     except ValueError:
-        problems.append(f"{name} must be an integer between {low} and {high}")
-        return default
-    if not low <= value <= high:
+        value = None
+    if value is None or not low <= value <= high:
         problems.append(f"{name} must be an integer between {low} and {high}")
         return default
     return value
@@ -130,8 +129,8 @@ def settings_from_mapping(env: Mapping[str, str]) -> Settings:
     )
 
 
-def load_settings(env_file: Path | None | object = _DEFAULT, environ: Mapping[str, str] | None = None) -> Settings:
-    """Load settings from .env (if present) overlaid by real environment variables.
+def _merged_env(env_file: Path | None | object, environ: Mapping[str, str] | None) -> dict[str, str]:
+    """Return .env values (if the file exists) overlaid by real environment variables.
 
     .env is read into a dict and never copied into os.environ, so editing the
     file and pressing Refresh in the app picks up the change.
@@ -139,21 +138,19 @@ def load_settings(env_file: Path | None | object = _DEFAULT, environ: Mapping[st
     if env_file is _DEFAULT:
         env_file = DEFAULT_ENV_FILE
     file_values: dict[str, str] = {}
-    # Read .env without mutating the process environment, then let real vars win.
     if env_file is not None and Path(env_file).is_file():
         file_values = {k: v for k, v in dotenv_values(env_file).items() if v is not None}
     real = os.environ if environ is None else environ
-    return settings_from_mapping({**file_values, **real})
+    return {**file_values, **real}
+
+
+def load_settings(env_file: Path | None | object = _DEFAULT, environ: Mapping[str, str] | None = None) -> Settings:
+    """Load settings from .env (if present) overlaid by real environment variables."""
+    return settings_from_mapping(_merged_env(env_file, environ))
 
 
 def configuration_report(env_file: Path | None | object = _DEFAULT, environ: Mapping[str, str] | None = None) -> dict[str, bool]:
     """Which variables are set (True/False). Names only; used by the System page."""
-    if env_file is _DEFAULT:
-        env_file = DEFAULT_ENV_FILE
-    file_values: dict[str, str] = {}
-    if env_file is not None and Path(env_file).is_file():
-        file_values = {k: v for k, v in dotenv_values(env_file).items() if v is not None}
-    real = os.environ if environ is None else environ
-    merged = {**file_values, **real}
+    merged = _merged_env(env_file, environ)
     # Expose only whether each known variable is present, never its value.
     return {name: name in merged and (merged[name].strip() != "" or name == "DB_PASSWORD") for name in ALL_VARS}

@@ -37,8 +37,7 @@ def describe_db_error(exc: BaseException) -> str:
         return _BY_CODE[code]
     if "cryptography" in str(exc).lower():
         return "The 'cryptography' package is missing. MySQL 8 sign-in needs it: pip install cryptography."
-    names = {cls.__name__ for cls in type(exc).__mro__}
-    if names & _CONNECTION_CLASSES:
+    if is_connection_error(exc):
         return "The database is unreachable or refused the connection. See logs/app.log for details."
     return "Unexpected database error. See logs/app.log for details."
 

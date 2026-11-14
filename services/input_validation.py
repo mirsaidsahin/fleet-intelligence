@@ -1,7 +1,6 @@
 """Validation for fleet record forms, kept independent of Streamlit."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Mapping
 
 from services.workflow import status_transition_problem

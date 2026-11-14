@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import random
 from datetime import datetime
 from html import escape
@@ -17,6 +18,7 @@ from components.bootstrap import get_app_context
 from components.health_panels import connection_card, schema_card
 from components.placeholders import page_header
 from components.status_bar import current_report
+from components.tables import search_frame
 from repositories.fleet import DashboardRepository
 from services.image_assets import driver_image, truck_image
 from utils.db import DatabaseUnavailableError, QueryError
@@ -31,12 +33,6 @@ FINLAND_NODES = {
     "Kuopio": (27.68, 62.89), "Rovaniemi": (25.72, 66.50),
 }
 TRUCK_COLORS = ["#D69A4A", "#8FA37A", "#C77658", "#7D9AA5", "#B8A36A", "#9B8D7A", "#748A74"]
-
-
-def _estimated_progress(job: dict) -> float:
-    """Pick a fresh illustrative point inside the planned route on each render."""
-    del job  # The map position is illustrative, not derived from schedule or GPS data.
-    return random.uniform(0.15, 0.85)
 
 
 @st.cache_data(show_spinner=False)
@@ -122,7 +118,8 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
         start, end = row.get("DepartureCity"), row.get("ArrivalCity")
         if start not in FINLAND_NODES or end not in FINLAND_NODES:
             continue
-        progress = _estimated_progress(row)
+        # A fresh illustrative point on each render; not derived from schedule or GPS data.
+        progress = random.uniform(0.15, 0.85)
         x1, y1 = FINLAND_NODES[start]
         x2, y2 = FINLAND_NODES[end]
         lon, lat = x1 + (x2 - x1) * progress, y1 + (y2 - y1) * progress
@@ -151,19 +148,15 @@ def fleet_map(routes: pd.DataFrame, active_jobs: pd.DataFrame) -> tuple[folium.M
             f"{start} → {end} · Driver: {row.get('Driver') or 'Unassigned'}"
         )
 
-    cities = sorted(mapped_cities)
-    if cities:
-        for city in cities:
-            lon, lat = FINLAND_NODES[city]
-            folium.CircleMarker(
-                [lat, lon], radius=4, color="#ECEDE6", weight=1,
-                fill=True, fill_color="#ECEDE6", fill_opacity=.9,
-                tooltip=city,
-            ).add_to(map_view)
+    for city in sorted(mapped_cities):
+        lon, lat = FINLAND_NODES[city]
+        folium.CircleMarker(
+            [lat, lon], radius=4, color="#ECEDE6", weight=1,
+            fill=True, fill_color="#ECEDE6", fill_opacity=.9,
+            tooltip=city,
+        ).add_to(map_view)
     if plotted_jobs:
         # Handle selection in Leaflet so clicking a marker does not rerun Streamlit.
-        import json
-
         route_lines_json = json.dumps(route_line_refs)
         markers_json = json.dumps(marker_refs)
         colors_json = json.dumps(truck_colors)
@@ -252,10 +245,7 @@ def _dispatch_view(repo: DashboardRepository) -> None:
         selected_statuses = st.multiselect("Status", statuses, default=statuses, key="dispatch_status")
     with second:
         search = st.text_input("Find a truck, driver, route or customer", key="dispatch_search")
-    frame = frame[frame["Status"].isin(selected_statuses)]
-    if search.strip():
-        mask = frame.astype(str).apply(lambda col: col.str.contains(search.strip(), case=False, na=False)).any(axis=1)
-        frame = frame[mask]
+    frame = search_frame(frame[frame["Status"].isin(selected_statuses)], search)
     st.caption(f"{len(frame)} job(s) match the current view")
     st.dataframe(frame, hide_index=True, width="stretch", column_config={
         "StartDate": st.column_config.DatetimeColumn("Start time", format="D MMM, HH:mm"),
@@ -304,17 +294,22 @@ def _driver_view(repo: DashboardRepository) -> None:
     })
 
 
+def _health_cards(report, settings) -> None:
+    """Show the connection and schema summaries side by side."""
+    left, right = st.columns(2)
+    with left:
+        connection_card(report, settings)
+    with right:
+        schema_card(report)
+
+
 ctx = get_app_context()
 # Reuse the top-bar report so page health details match the displayed status.
 report = current_report(ctx)
 page_header("Operations Command Center", "One live view for fleet readiness, route activity and dispatch risks.")
 
 if ctx.database is None:
-    left, right = st.columns(2)
-    with left:
-        connection_card(report, ctx.settings)
-    with right:
-        schema_card(report)
+    _health_cards(report, ctx.settings)
     st.info("Set the database values in `.env` to show operating data.")
     st.page_link("pages/reports_system.py", label="Open Reports & System")
     st.stop()
@@ -333,14 +328,14 @@ try:
         f'<div class="fi-hero-sub">Operations briefing · {datetime.now():%A, %d %B %Y}</div></div>',
         unsafe_allow_html=True,
     )
-    a, b, c, d, e = st.columns(5)
-    a.metric("Fleet vehicles", f"{int(stats.get('trucks') or 0):,}")
-    b.metric("Drivers", f"{int(stats.get('drivers') or 0):,}")
-    c.metric("Open jobs", f"{int(stats.get('open_jobs') or 0):,}")
-    d.metric("In transit", f"{int(stats.get('in_transit') or 0):,}")
-    e.metric("Pending past start", f"{int(stats.get('overdue') or 0):,}", help="Pending jobs whose recorded start time has passed")
     fleet_count = int(stats.get("trucks") or 0)
     in_service = int(stats.get("in_transit") or 0)
+    a, b, c, d, e = st.columns(5)
+    a.metric("Fleet vehicles", f"{fleet_count:,}")
+    b.metric("Drivers", f"{int(stats.get('drivers') or 0):,}")
+    c.metric("Open jobs", f"{int(stats.get('open_jobs') or 0):,}")
+    d.metric("In transit", f"{in_service:,}")
+    e.metric("Pending past start", f"{int(stats.get('overdue') or 0):,}", help="Pending jobs whose recorded start time has passed")
     utilization = round(100 * in_service / fleet_count) if fleet_count else 0
     st.progress(min(utilization, 100), text=f"Fleet currently in transit · {in_service} of {fleet_count} vehicles ({utilization}%)")
 
@@ -359,9 +354,8 @@ try:
                 st.caption("Rule checks cover pending jobs past their start time and in-transit jobs beyond the route estimate.")
             else:
                 st.caption("Rule-based exceptions from live job and route records. Review these with dispatch.")
-                visible_alerts = alerts.head(4).to_dict("records")
                 alert_columns = st.columns(2, gap="small")
-                for index, row in enumerate(visible_alerts):
+                for index, row in enumerate(alerts.head(4).to_dict("records")):
                     with alert_columns[index % 2]:
                         st.markdown(
                             f'<div class="fi-alert"><div class="fi-alert-title">JOB #{int(row["JobID"])} · {escape(str(row["Alert"]))}</div>'
@@ -414,8 +408,7 @@ try:
                                                  "Assignment conflict": "#9B8D7A"})
                 fig.update_traces(marker_line_width=0, text=counts["Vehicles"], textposition="outside",
                                   cliponaxis=False, textfont={"color": "#ECEDE6", "size": 12})
-                fig.update_layout(height=340, margin={"l": 4, "r": 8, "t": 8, "b": 8,
-                                                     "pad": 0}, showlegend=False,
+                fig.update_layout(height=340, margin={"l": 4, "r": 8, "t": 8, "b": 8, "pad": 0}, showlegend=False,
                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                   font={"family": "Bahnschrift, Aptos, Segoe UI, sans-serif", "color": "#ECEDE6"},
                                   xaxis={"showgrid": True, "gridcolor": "#333A36", "zeroline": False,
@@ -432,8 +425,7 @@ try:
                 fig = px.area(monthly, x="month", y="revenue", markers=True,
                               labels={"month": "Month", "revenue": "Revenue (EUR)"})
                 fig.update_traces(line_color="#D69A4A", fillcolor="rgba(214,154,74,.14)")
-                fig.update_layout(height=300, margin={"l": 8, "r": 8, "t": 12, "b": 8,
-                                                      "pad": 0},
+                fig.update_layout(height=300, margin={"l": 8, "r": 8, "t": 12, "b": 8, "pad": 0},
                                   paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
             else:
@@ -455,10 +447,6 @@ try:
         _driver_view(repo)
 
     with st.expander("Database health"):
-        x, y = st.columns(2)
-        with x:
-            connection_card(report, ctx.settings)
-        with y:
-            schema_card(report)
+        _health_cards(report, ctx.settings)
 except (DatabaseUnavailableError, QueryError) as exc:
     st.error(str(exc))

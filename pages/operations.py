@@ -20,11 +20,10 @@ else:
         ("Customers", "ACCOUNTS", "Keep shipper and customer records in order."),
     ])
     st.markdown(f'<div class="fi-section-label">{active} workspace</div>', unsafe_allow_html=True)
-    if active == "Jobs":
-        entity_manager(ctx.database, "jobs", "Job board")
-    elif active == "Cargo":
-        entity_manager(ctx.database, "cargos", "Cargo catalog")
-    elif active == "Routes":
-        entity_manager(ctx.database, "routes", "Route directory")
-    else:
-        entity_manager(ctx.database, "customers", "Customer directory")
+    table, title = {
+        "Jobs": ("jobs", "Job board"),
+        "Cargo": ("cargos", "Cargo catalog"),
+        "Routes": ("routes", "Route directory"),
+        "Customers": ("customers", "Customer directory"),
+    }[active]
+    entity_manager(ctx.database, table, title)
