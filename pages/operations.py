@@ -3,14 +3,13 @@ import streamlit as st
 
 from components.bootstrap import get_app_context
 from components.entity_manager import entity_manager
-from components.placeholders import page_header
-from components.section_nav import section_nav
+from components.ui import page_header, section_nav
 
 page_header("Operations", "Schedule and track jobs, routes, cargo and customers.")
 ctx = get_app_context()
 # Keep record management disabled until the database is configured.
 if not ctx.database:
-    st.warning("Configure the database connection in Reports & System to manage operations.")
+    st.warning("Configure the database connection in System to manage operations.")
 else:
     # Let the user switch operation areas without navigating to another page.
     active = section_nav("operations_workspace", [

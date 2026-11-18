@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from services.workflow import status_transition_problem
+from services.jobs import status_transition_problem
 
 
 FIELDS = {

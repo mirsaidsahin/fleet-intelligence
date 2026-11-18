@@ -43,24 +43,20 @@ Unique-key and foreign-key errors have specific guidance. The database enforces 
 schema rules and relationships; users should refresh records and check linked entries when a
 write is rejected.
 
-## Image uploads
+## Images
 
-Uploads are limited to 10 MB and supported formats. The image service validates the entity,
-ID, visual option, file signature, and that the file can be verified as a real PNG or JPEG
-before saving into the local asset folders. New images are written to a temporary file and
-atomically moved into place before older file formats are removed, preserving the previous
-image if the write fails. The UI keeps its success notice visible after the Streamlit rerun.
-Invalid files and filesystem failures are caught at the UI boundary and shown as actionable
-errors.
+Images are not uploaded through the app. Place them in the `assets/` folder by hand using the
+naming convention in `assets/README.md`; the Fleet page only looks them up and
+display them.
 
-The welcome dialog appears once per Streamlit session and can be dismissed. It points users to
-the main areas of the app and explicitly labels map positions as illustrative.
+The demonstration disclaimer (map positions are illustrative, brand logos are for demonstration
+only) is shown as a caption in the sidebar on every page.
 
 ## Automated checks
 
 Run `python -m pytest` from the project root. The unit tests exercise validation rules,
 configuration safety, error translation, repository SQL parameterization, status rules, image
-lookup/upload/replacement/rejection, and schema comparison. Create, update, and delete SQL is
+lookup and truck visual selection. Create, update, and delete SQL is
 checked for every supported entity table. Tests use fakes and temporary directories; they do
 not require the production database or local environment file. Repository behavior is also
 exercised against a temporary SQLite database, while Streamlit AppTest checks the delete warning,

@@ -18,13 +18,14 @@ DEFAULT_ENV_FILE = PROJECT_ROOT / ".env"
 REQUIRED_VARS = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 OPTIONAL_VARS = (
     "DB_PORT",
-    "DB_POOL_SIZE",
-    "DB_CONNECT_TIMEOUT",
-    "STATUS_TTL_SECONDS",
-    "CACHE_TTL_SECONDS",
     "LOG_LEVEL",
 )
 ALL_VARS = REQUIRED_VARS + OPTIONAL_VARS
+
+# Fixed tuning values: not read from the environment.
+DB_POOL_SIZE = 5
+DB_CONNECT_TIMEOUT = 5
+STATUS_TTL_SECONDS = 60
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 _DEFAULT = object()  # sentinel: resolve DEFAULT_ENV_FILE at call time so tests can override it
 
@@ -44,10 +45,6 @@ class Settings:
     db_user: str
     db_password: str = field(repr=False)
     db_port: int = 3306
-    pool_size: int = 5
-    connect_timeout: int = 5
-    status_ttl_seconds: int = 60
-    cache_ttl_seconds: int = 120
     log_level: str = "INFO"
 
     def sqlalchemy_url(self):
@@ -107,10 +104,6 @@ def settings_from_mapping(env: Mapping[str, str]) -> Settings:
         log_level = "INFO"
 
     port = _read_int(env, "DB_PORT", 3306, 1, 65535, problems)
-    pool_size = _read_int(env, "DB_POOL_SIZE", 5, 1, 20, problems)
-    connect_timeout = _read_int(env, "DB_CONNECT_TIMEOUT", 5, 1, 60, problems)
-    status_ttl = _read_int(env, "STATUS_TTL_SECONDS", 60, 5, 3600, problems)
-    cache_ttl = _read_int(env, "CACHE_TTL_SECONDS", 120, 5, 3600, problems)
 
     if problems:
         raise ConfigError(problems)
@@ -121,10 +114,6 @@ def settings_from_mapping(env: Mapping[str, str]) -> Settings:
         db_user=env["DB_USER"].strip(),
         db_password=env["DB_PASSWORD"],
         db_port=port,
-        pool_size=pool_size,
-        connect_timeout=connect_timeout,
-        status_ttl_seconds=status_ttl,
-        cache_ttl_seconds=cache_ttl,
         log_level=log_level,
     )
 
@@ -148,9 +137,3 @@ def load_settings(env_file: Path | None | object = _DEFAULT, environ: Mapping[st
     """Load settings from .env (if present) overlaid by real environment variables."""
     return settings_from_mapping(_merged_env(env_file, environ))
 
-
-def configuration_report(env_file: Path | None | object = _DEFAULT, environ: Mapping[str, str] | None = None) -> dict[str, bool]:
-    """Which variables are set (True/False). Names only; used by the System page."""
-    merged = _merged_env(env_file, environ)
-    # Expose only whether each known variable is present, never its value.
-    return {name: name in merged and (merged[name].strip() != "" or name == "DB_PASSWORD") for name in ALL_VARS}

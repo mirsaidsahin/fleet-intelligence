@@ -6,11 +6,10 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from components.tables import search_frame
+from components.image_panel import image_panel
+from components.ui import search_frame
 from repositories.fleet import FleetRepository
-from services.image_assets import brand_image, driver_image, save_uploaded_image, truck_image
 from services.input_validation import FIELDS, validate_record
-from services.visual_config import VISUAL_CONVENTION_NOTE, choose_visual_config
 from utils.db import DatabaseUnavailableError, QueryError
 
 LOOKUPS = {
@@ -99,80 +98,14 @@ def record_change_summary(title: str, operation: str, record_id: int | None = No
     return summary
 
 
-def _truck_preview(database, truck: dict, truck_id: int) -> str:
-    """Show a truck with its current or assigned driver; return the visual variant used."""
-    # Truck imagery reflects its demo status and selected driver.
-    transit = database.fetch_one(
-        "SELECT DriverID FROM jobs WHERE TruckID=:id AND Status='In Transit' ORDER BY StartDate DESC LIMIT 1",
-        {"id": truck_id},
-    )
-    visual = choose_visual_config(truck.get("RequiredLicense"), bool(transit)).value
-    image_path = truck_image(truck_id, truck.get("BrandID"), visual)
-    driver_id = transit.get("DriverID") if transit else truck.get("AssignedDriverID")
-    driver_path = driver_image(int(driver_id)) if driver_id else None
-    driver = database.fetch_one(
-        "SELECT CONCAT(FirstName, ' ', LastName) AS name FROM drivers WHERE DriverID=:id",
-        {"id": driver_id},
-    ) if driver_id else None
-    st.caption(VISUAL_CONVENTION_NOTE)
-    vehicle_col, driver_col = st.columns([3, 1], vertical_alignment="center")
-    with vehicle_col:
-        if image_path:
-            st.image(str(image_path), width=360)
-            st.caption("Truck")
-        else:
-            st.caption("No truck image. See assets/README.md for supported filenames.")
-    with driver_col:
-        if driver_path:
-            st.image(str(driver_path), width=128)
-            st.caption("Current driver" if transit else "Assigned driver")
-        else:
-            st.caption("No driver photo")
-        if driver:
-            st.caption(driver["name"])
-    return visual
-
-
-def _image_panel(database, table: str, rows: list[dict], key_col: str, notice_key: str) -> None:
-    """Preview one record's local image and let the user add or replace it."""
-    selected_id = st.selectbox("Image preview", [int(row[key_col]) for row in rows], format_func=lambda x: f"#{x}", key=f"image_preview_{table}")
-    visual = None
-    if table == "trucks":
-        selected = next(row for row in rows if int(row[key_col]) == selected_id)
-        visual = _truck_preview(database, selected, selected_id)
-    else:
-        image_path = driver_image(selected_id) if table == "drivers" else brand_image(selected_id)
-        if image_path:
-            st.image(str(image_path), width=144)
-        else:
-            st.caption("No local image. See assets/README.md for supported filenames.")
-    upload = st.file_uploader(
-        "Add or replace image (max 10 MB)",
-        type=["png", "jpg", "jpeg"] if table == "drivers" else ["png"],
-        max_upload_size=10,
-        key=f"upload_{table}_{selected_id}",
-    )
-    if upload is not None:
-        st.caption(f"Selected: {upload.name}")
-    if st.button("Save image", key=f"save_image_{table}_{selected_id}", disabled=upload is None):
-        try:
-            saved = save_uploaded_image(table, selected_id, upload.getvalue(), visual)
-            st.session_state[notice_key] = f"Image saved: {saved.name}"
-            st.rerun()
-        except (ValueError, OSError) as exc:
-            st.error(str(exc))
-
-
 def entity_manager(database, table: str, title: str) -> None:
     """Render search, image, create/edit, and delete controls for one table."""
     repo = FleetRepository(database)
     st.subheader(title)
     # Notices are stored before a rerun and shown once on the refreshed page.
     notice_key = f"record_notice_{table}"
-    image_notice_key = f"image_notice_{table}"
-    for key in (notice_key, image_notice_key):
-        if key in st.session_state:
-            st.success(st.session_state.pop(key))
+    if notice_key in st.session_state:
+        st.success(st.session_state.pop(notice_key))
     key_col = FleetRepository.TABLES[table][0]
     try:
         # Load a bounded set of rows once for the table, editor, and image picker.
@@ -186,7 +119,7 @@ def entity_manager(database, table: str, title: str) -> None:
             st.caption(f"{len(frame)} record(s) shown · maximum 500")
             st.dataframe(frame, hide_index=True, width="stretch")
             if table in IMAGE_TABLES:
-                _image_panel(database, table, rows, key_col, image_notice_key)
+                image_panel(database, table, rows, key_col)
         options = [int(row[key_col]) for row in rows]
         with st.expander("Create or edit record", expanded=not rows):
             # Reuse one form for both insert and update actions.

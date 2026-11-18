@@ -1,17 +1,16 @@
 # Image assets
 
 Images are local files and are NOT committed to the public repository
-(see `.gitignore`). You can upload or replace images from the Fleet and Drivers pages;
-the app saves them here using the naming convention below. Direct file placement also works.
+(see `.gitignore`). Add or replace images by hand: copy the files into this folder using the
+naming convention below. The Fleet page only displays them.
 
 | Folder | Naming | Matches |
 |---|---|---|
 | `drivers/` | `{DriverID}.png`, `.jpg` or `.jpeg` | `drivers.DriverID` (1 to 30) |
 | `brands/` | `{BrandID}.png` | `brands.BrandID` (1 to 11) |
-| `trucks/` | `by_truck/{TruckID}_{tractor|trailer}.png`, `by_brand/{BrandID}_{tractor|trailer}.png`, `default_{tractor|trailer}.png` | resolved in that order |
+| `trucks/` | `by_truck/{TruckID}_tractor.png`, `by_brand/{BrandID}_tractor.png`, `default_tractor.png` | resolved in that order |
 
-Driver portraits accept PNG/JPEG. Brand logos and truck views accept PNG. Uploads are limited to 10 MB.
-Truck uploads target the view required for that truck's current visual convention.
+Driver portraits accept PNG/JPEG. Brand logos and truck views accept PNG.
 
 Brand logo files `{BrandID}.png` are currently populated for all eleven seeded
 brands. The logo is centered on a light card so dark marks remain visible in the

@@ -6,9 +6,7 @@ from typing import Any, Mapping
 
 from sqlalchemy import text
 
-from models.status import OpenJob
-from services.fleet_status import classify
-from services.workflow import find_assignment_conflicts
+from services.jobs import OPEN_STATUSES, OpenJob, classify, find_assignment_conflicts
 
 
 class FleetRepository:
@@ -16,14 +14,20 @@ class FleetRepository:
 
     # Column names are fixed here; user input is used only for bound values.
     TABLES = {
-        "trucks": ("TruckID", "BrandID", "Model", "ProductionYear", "RequiredLicense", "PlateNumber", "Mileage", "GarageID", "AssignedDriverID"),
-        "drivers": ("DriverID", "FirstName", "LastName", "LicenseType", "ExperienceYears", "Phone", "MentorID"),
-        "jobs": ("JobID", "TruckID", "DriverID", "CargoID", "RouteID", "StartDate", "Status", "EndDate", "CustomerID", "RevenueEUR"),
         "brands": ("BrandID", "BrandName", "Country"),
+        "customers": ("CustomerID", "CompanyName", "ContactPerson", "Phone", "Address"),
         "garages": ("GarageID", "City", "Capacity"),
+        "drivers": ("DriverID", "FirstName", "LastName", "LicenseType", "ExperienceYears", "Phone", "MentorID"),
         "routes": ("RouteID", "DepartureCity", "ArrivalCity", "DistanceKm", "EstimatedHours", "SpecialistDriverID"),
         "cargos": ("CargoID", "CargoName", "WeightKg", "ValueEUR", "DefaultRouteID"),
-        "customers": ("CustomerID", "CompanyName", "ContactPerson", "Phone", "Address"),
+        "trucks": (
+            "TruckID", "BrandID", "Model", "ProductionYear", "RequiredLicense",
+            "PlateNumber", "Mileage", "GarageID", "AssignedDriverID",
+        ),
+        "jobs": (
+            "JobID", "TruckID", "DriverID", "CargoID", "RouteID", "StartDate",
+            "Status", "EndDate", "CustomerID", "RevenueEUR",
+        ),
     }
 
     def __init__(self, database: Any) -> None:
@@ -64,7 +68,7 @@ class FleetRepository:
 
     def assignment_conflicts(self, values: Mapping[str, Any], exclude_job_id: int | None = None) -> list[dict[str, Any]]:
         """Find active jobs overlapping the selected truck or driver assignment."""
-        if values.get("Status") not in ("Pending", "In Transit"):
+        if values.get("Status") not in OPEN_STATUSES:
             return []
         route_id = values.get("RouteID")
         route = self.db.fetch_one("SELECT EstimatedHours FROM routes WHERE RouteID=:route_id", {"route_id": route_id})
@@ -178,43 +182,6 @@ class DashboardRepository:
             GROUP BY r.RouteID, r.DepartureCity, r.ArrivalCity,
                      r.DistanceKm, r.EstimatedHours
             ORDER BY r.RouteID""")
-
-    def operational_alerts(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Explainable alerts calculated from pending starts and estimated durations."""
-        return self.db.fetch_all("""SELECT 'Pending past start' AS Alert,
-            'Review dispatch' AS Action, j.JobID,
-            CONCAT(r.DepartureCity, ' → ', r.ArrivalCity) AS Route,
-            CONCAT(d.FirstName, ' ', d.LastName) AS Driver, j.StartDate
-            FROM jobs j JOIN routes r ON r.RouteID=j.RouteID
-            JOIN drivers d ON d.DriverID=j.DriverID
-            WHERE j.Status='Pending' AND j.StartDate < NOW()
-            UNION ALL
-            SELECT 'Transit exceeds estimate' AS Alert,
-            'Check vehicle status' AS Action, j.JobID,
-            CONCAT(r.DepartureCity, ' → ', r.ArrivalCity) AS Route,
-            CONCAT(d.FirstName, ' ', d.LastName) AS Driver, j.StartDate
-            FROM jobs j JOIN routes r ON r.RouteID=j.RouteID
-            JOIN drivers d ON d.DriverID=j.DriverID
-            WHERE j.Status='In Transit'
-              AND j.StartDate < DATE_SUB(NOW(), INTERVAL r.EstimatedHours HOUR)
-            ORDER BY StartDate LIMIT :limit""", {"limit": limit})
-
-    def driver_scoreboard(self) -> list[dict[str, Any]]:
-        """Completed-work performance based only on recorded job and route data."""
-        return self.db.fetch_all("""SELECT d.DriverID,
-            CONCAT(d.FirstName, ' ', d.LastName) AS Driver,
-            d.ExperienceYears,
-            SUM(CASE WHEN j.Status='Completed' THEN 1 ELSE 0 END) AS CompletedJobs,
-            COALESCE(SUM(CASE WHEN j.Status='Completed' THEN j.RevenueEUR ELSE 0 END),0) AS RevenueEUR,
-            COALESCE(SUM(CASE WHEN j.Status='Completed' THEN r.DistanceKm ELSE 0 END),0) AS DistanceKm,
-            SUM(CASE WHEN j.Status='Completed' AND j.StartDate IS NOT NULL
-                AND j.EndDate IS NOT NULL
-                AND j.EndDate <= DATE_ADD(j.StartDate, INTERVAL r.EstimatedHours HOUR)
-                THEN 1 ELSE 0 END) AS OnTimeJobs
-            FROM drivers d LEFT JOIN jobs j ON j.DriverID=d.DriverID
-            LEFT JOIN routes r ON r.RouteID=j.RouteID
-            GROUP BY d.DriverID, d.FirstName, d.LastName, d.ExperienceYears
-            ORDER BY CompletedJobs DESC, RevenueEUR DESC, Driver""")
 
     def truck_statuses(self) -> list[dict[str, Any]]:
         rows = self.db.fetch_all("""SELECT t.TruckID, t.PlateNumber, b.BrandName, t.Model,

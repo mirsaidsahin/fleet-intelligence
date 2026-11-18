@@ -1,7 +1,19 @@
-"""Persistent in-page navigation for entity management sections."""
+"""Small UI helpers shared by every page: heading, in-page workspace navigation and table search."""
 from __future__ import annotations
 
+from html import escape
+
+import pandas as pd
 import streamlit as st
+
+
+def page_header(title: str, subtitle: str) -> None:
+    """Render a consistent page title and supporting description."""
+    # Escape page copy before inserting it into the shared HTML heading.
+    st.markdown(
+        f'<h1 class="fi-title">{escape(title)}</h1><div class="fi-subtitle">{escape(subtitle)}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def section_nav(state_key: str, items: list[tuple[str, str, str]]) -> str:
@@ -28,3 +40,12 @@ def section_nav(state_key: str, items: list[tuple[str, str, str]]) -> str:
     description = next(description for name, _, description in items if name == active)
     st.caption(description)
     return active
+
+
+def search_frame(frame: pd.DataFrame, query: str) -> pd.DataFrame:
+    """Keep rows where any visible value contains `query`, ignoring case."""
+    query = query.strip()
+    if not query:
+        return frame
+    mask = frame.astype(str).apply(lambda col: col.str.contains(query, case=False, na=False)).any(axis=1)
+    return frame[mask]

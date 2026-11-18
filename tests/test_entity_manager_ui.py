@@ -1,6 +1,9 @@
 """Streamlit AppTest checks for the delete confirmation and impact UI."""
 from streamlit.testing.v1 import AppTest
 
+# Import once up front so the slow first import is not counted against AppTest's 3 s run timeout.
+import components.entity_manager  # noqa: E402,F401
+
 
 def make_app(linked_counts):
     return AppTest.from_string(f'''\

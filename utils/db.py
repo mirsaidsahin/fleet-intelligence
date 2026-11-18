@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterator, Mapping
 
@@ -10,13 +11,24 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from models.health import ConnectionStatus
-from utils.config import Settings
+from utils.config import DB_CONNECT_TIMEOUT, DB_POOL_SIZE, Settings
 from utils.db_errors import describe_db_error, is_connection_error
 from utils.logging_setup import get_logger
 from utils.sql_guard import assert_read_only
 
 logger = get_logger("db")
+
+
+@dataclass(frozen=True)
+class ConnectionStatus:
+    """One database ping result and its safe, optional diagnostic details."""
+
+    connected: bool
+    checked_at: datetime
+    latency_ms: float | None = None
+    server_version: str | None = None
+    database: str | None = None
+    error: str | None = None  # short, safe message; raw details go to the log
 
 
 class DatabaseUnavailableError(Exception):
@@ -37,12 +49,12 @@ class Database:
     def from_settings(cls, settings: Settings) -> "Database":
         engine = create_engine(
             settings.sqlalchemy_url(),
-            pool_size=settings.pool_size,
+            pool_size=DB_POOL_SIZE,
             max_overflow=2,
             pool_pre_ping=True,  # replaces dead pooled connections instead of failing the page
             pool_recycle=1800,
             connect_args={
-                "connect_timeout": settings.connect_timeout,
+                "connect_timeout": DB_CONNECT_TIMEOUT,
                 "read_timeout": 30,
                 "write_timeout": 30,
             },
@@ -95,10 +107,6 @@ class Database:
                 yield conn
         except SQLAlchemyError as exc:
             raise self._wrap(exc) from exc
-
-    def dispose(self) -> None:
-        """Close pooled connections when the application shuts down."""
-        self._engine.dispose()
 
     @staticmethod
     def _wrap(exc: SQLAlchemyError) -> Exception:

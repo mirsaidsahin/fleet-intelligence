@@ -5,11 +5,9 @@ Run with:  streamlit run app.py
 import streamlit as st
 
 from components.bootstrap import get_app_context
-from components.health_panels import configuration_panel
 from components.status_bar import render_top_bar
 from components.theme import apply_theme
-from components.welcome import show_welcome
-from utils.version import APP_VERSION, BUILD_PHASE
+from utils.version import APP_VERSION
 
 # Set the shared browser title, icon, layout, and initial sidebar state.
 st.set_page_config(
@@ -29,24 +27,27 @@ navigation = st.navigation(
     [
         st.Page("pages/command_center.py", title="Command Center", icon=":material/dashboard:", default=True),
         st.Page("pages/fleet.py", title="Fleet", icon=":material/local_shipping:"),
-        st.Page("pages/drivers.py", title="Drivers", icon=":material/badge:"),
         st.Page("pages/operations.py", title="Operations", icon=":material/route:"),
-        st.Page("pages/reports_system.py", title="Reports & System", icon=":material/monitoring:"),
+        st.Page("pages/system.py", title="System", icon=":material/monitoring:"),
     ]
 )
 
-# Keep database health visible while giving first-time users a short orientation.
+# Keep database health visible at the top of every page.
 render_top_bar(ctx)
-show_welcome()
 
-# Show the application version without crowding the main navigation.
+# Show the application version and demonstration disclaimer without crowding the navigation.
 with st.sidebar:
-    st.caption(f"Version {APP_VERSION}, {BUILD_PHASE}")
+    st.caption(f"Version {APP_VERSION}")
+    st.caption(
+        "Map positions are illustrative, not live tracking. Brand logos are for demonstration only; "
+        "trademarks belong to their respective owners."
+    )
 
 # Stop before page execution when required database settings are invalid or missing.
 if ctx.settings is None:
     st.error("The application is not configured. Copy .env.example to .env, fill in the database settings, then press Refresh.")
-    configuration_panel(None, ctx.config_problems)
+    for problem in ctx.config_problems:
+        st.error(problem)
     st.stop()
 
 # Dispatch control to the page selected in Streamlit's navigation widget.

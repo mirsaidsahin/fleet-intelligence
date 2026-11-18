@@ -56,13 +56,6 @@ Before deletion, the app counts inbound references from related tables and block
 while any remain. MySQL foreign-key constraints remain the final protection if data changes
 between the preview and the attempted delete.
 
-## Trailer image convention
-
-The database stores no trailers. The tractor-with-trailer image is a visual convention only:
-it is shown when `trucks.RequiredLicense` is `CE` and the truck has an In Transit job.
-Every other truck shows the tractor-only image. The UI labels these images as illustrative
-(`services/visual_config.py`, `VISUAL_CONVENTION_NOTE`). No trailer ID, owner or assignment is ever displayed.
-
 ## Image assets
 
 ETS2 portraits, brand logos and truck images stay out of the public repository.

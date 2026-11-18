@@ -55,7 +55,7 @@ Small controls use a 4 px radius, cards use 6 px, and dialogs use 8 px.
 - **Forms and tables:** Panel background, consistent line color, and labels that identify
   the affected field or record.
 
-The main styles and CSS tokens live in `components/theme.py`; Streamlit's base colors are
+The main styles and CSS tokens live in `components/theme.css`; Streamlit's base colors are
 set in `.streamlit/config.toml`.
 
 ## Accessibility rules

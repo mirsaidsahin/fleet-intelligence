@@ -9,7 +9,7 @@ VALID = {"DB_HOST": "127.0.0.1", "DB_NAME": "omnilogistics", "DB_USER": "fleet_a
 
 def test_valid_settings_use_defaults():
     s = settings_from_mapping(VALID)
-    assert (s.db_host, s.db_name, s.db_port, s.pool_size) == ("127.0.0.1", "omnilogistics", 3306, 5)
+    assert (s.db_host, s.db_name, s.db_port) == ("127.0.0.1", "omnilogistics", 3306)
 
 
 def test_missing_variables_are_named_without_values():

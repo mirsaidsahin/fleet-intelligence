@@ -1,28 +1,25 @@
 # Fleet Intelligence System
 
 Streamlit and MySQL fleet operations app for the existing `omnilogistics` database.
-The Command Center brings fleet status, dispatch work, route activity and operational
-alerts into one view. Fleet, driver and operations records can also be maintained from
-the app, with system checks and filtered data exports available in Reports & System.
+The Command Center brings fleet status, dispatch work and route activity into one view. Fleet, driver and operations records can also be maintained from
+the app, with a database connection check on the System page.
 
 ## What the app includes
 
-- A Command Center with fleet counts, dispatch attention items, driver performance and
+- A Command Center with fleet counts, a fleet map, status charts and
   recent operating activity.
-- A first-run welcome dialog that introduces the main sections and clarifies that map positions
-  are illustrative rather than live GPS data.
-- An interactive route map with truck and driver photo previews. Illustrative truck points
+- A sidebar note that map positions are illustrative rather than live GPS data and that brand
+  logos are for demonstration only.
+- A route map with truck tooltips. Illustrative truck points
   are randomized along their assigned routes on page refresh and every ten minutes; they
   are not GPS locations.
 - Fleet and operations workspaces for trucks, brands, garages, jobs, cargo, routes and
   customers, plus driver record management.
-- Rule-based checks for jobs that need dispatch review, database/schema status panels,
-  searchable reports and CSV downloads.
+- A searchable dispatch board with CSV export and a database connection panel on the System page.
 - Job status transition rules, overlapping truck/driver assignment checks, and linked-record
   impact warnings before deletion.
-- Local image uploads for drivers, brands and trucks, with a shared dark interface using
-  warm amber, muted green and steel tones. Image replacements are written atomically so a failed
-  upload does not remove the previous image.
+- Local image previews for drivers, brands and trucks (images are placed by hand in the
+  `assets/` folder), with a shared dark interface using warm amber, muted green and steel tones.
 - Form validation for required fields, non-negative numeric values, and consistent job dates,
   with database errors translated into short, actionable messages.
 
@@ -41,12 +38,11 @@ AI service or API key.
    - Windows: `python -m venv .venv` then `.venv\Scripts\activate`
 2. Install dependencies: `pip install -r requirements.txt`
 3. Copy `.env.example` to `.env` and fill in `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
-4. For a new empty database, select the database and run `docs/schema.sql` as a MySQL administrator.
+4. For a new empty database, select the database and run `database/schema.sql` as a MySQL administrator.
    For the existing database from the course, keep its tables and data; do not run `BACKUP.sql`.
-5. Run `docs/create_app_user.sql` as a MySQL administrator after replacing its placeholder password.
+5. Run `database/create_app_user.sql` as a MySQL administrator after replacing its placeholder password.
    The account needs `SELECT`, `INSERT`, `UPDATE` and `DELETE` grants for CRUD.
-6. Check the connection and schema (read-only): `python scripts/verify_schema.py`
-7. Start the app: `streamlit run app.py`
+6. Start the app: `streamlit run app.py`
 
 ## Validation and error handling
 
@@ -54,7 +50,6 @@ AI service or API key.
   and ensure a job's end date is not earlier than its start date.
 - Database exceptions are logged for diagnosis while the interface displays safe messages
   that do not expose raw SQL, host details, or credentials.
-- Image uploads are checked for supported format, size, entity type, and image convention.
 
 More detail is in [docs/VALIDATION_AND_ERRORS.md](docs/VALIDATION_AND_ERRORS.md).
 
@@ -70,14 +65,37 @@ Tests use fakes or temporary in-memory databases and never read `.env` or contac
 ```
 app.py          entry point, navigation, status bar
 pages/          one script per navigation section
-components/     theme, status bar, panels, bootstrap (Streamlit code)
-services/       health, schema verification, status rules, visual convention
+components/     theme, status bar, panels, fleet map, shared UI helpers, bootstrap (Streamlit code)
+services/       job status rules, workflow safeguards, image assets
 repositories/   allow-listed SQL access and dashboard reports
-models/         plain data classes and the expected schema
-utils/          config, db engine, logging, SQL guard, error messages
-docs/           schema.sql, DEFINITIONS.md, create_app_user.sql
+utils/          config, db engine and connection status, logging, SQL guard, error messages
+database/       schema.sql, create_app_user.sql, update_garages_to_route_network.sql
+docs/           DEFINITIONS.md, DESIGN.md, VALIDATION_AND_ERRORS.md
 assets/         local images, ignored by git
 ```
+
+## Database usage
+
+The app uses eight tables in the MySQL `omnilogistics` database (full definition in
+`database/schema.sql`):
+
+| Table | Holds | Linked to | Managed on |
+|---|---|---|---|
+| `brands` | Truck manufacturers | — | Fleet |
+| `garages` | Regional garages | — | Fleet |
+| `trucks` | Vehicles, plate, mileage, required licence | brand, garage, assigned driver | Fleet |
+| `drivers` | Drivers and licence class | mentor (another driver) | Fleet |
+| `customers` | Customer companies | — | Operations |
+| `routes` | City-to-city routes, distance, hours | specialist driver | Operations |
+| `cargos` | Cargo types and default route | route | Operations |
+| `jobs` | Deliveries with dates and status | customer, truck, driver, cargo, route | Operations |
+
+- `repositories/fleet.py` holds all SQL. `FleetRepository` performs CRUD on the eight tables
+  with bound parameters; `DashboardRepository` runs the read-only queries (JOIN, GROUP BY)
+  behind the Command Center.
+- Writes run inside a transaction (`Database.transaction`), so a saved form is committed to MySQL.
+- Before a delete, the app counts linked rows (for example jobs that use a truck) and blocks the
+  delete while they exist; MySQL foreign keys enforce the same rule.
 
 ## Safety
 
@@ -85,7 +103,7 @@ assets/         local images, ignored by git
 - Credentials come from environment variables or `.env`. `.env` is git-ignored and passwords are redacted from logs.
 - Raw database errors go to `logs/app.log`; the UI shows short messages.
 - CRUD is limited to the eight known application tables and uses bound values. MySQL foreign-key constraints remain authoritative.
-- Records and reports show up to 500 rows per table; CSV export respects the selected report filters.
+- Records show up to 500 rows per table.
 
 ## Troubleshooting
 

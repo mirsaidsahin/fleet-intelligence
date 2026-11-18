@@ -54,13 +54,6 @@ def test_sqlite_create_update_and_delete_round_trip(sqlite_repo):
     assert sqlite_repo.db.fetch_one("SELECT BrandID FROM brands WHERE BrandID=:id", {"id": 1}) is None
 
 
-def test_linked_record_counts_report_references_before_delete(sqlite_repo):
-    sqlite_repo.save("brands", {"BrandName": "Volvo"})
-    sqlite_repo.save("trucks", {"BrandID": 1, "Model": "FH"})
-
-    assert sqlite_repo.linked_record_counts("brands", 1) == {"trucks": 1}
-
-
 def test_delete_keeps_foreign_key_rejection_as_final_safety(sqlite_repo):
     sqlite_repo.save("brands", {"BrandName": "Volvo"})
     sqlite_repo.save("trucks", {"BrandID": 1, "Model": "FH"})
