@@ -77,3 +77,28 @@ def test_valid_job_status_transition_passes_validation():
     values = {name: None for name, _, _ in FIELDS["jobs"]}
     values.update(Status="In Transit")
     assert validate_record("jobs", values, current={"Status": "Pending"}) == []
+
+
+# Week 5 activity: requirement-driven tests written in the Arrange, Act, Assert pattern.
+
+@pytest.mark.parametrize("quantity", [True, "3", 2.5])
+def test_invalid_cargo_weight_types_are_rejected(quantity):
+    # Arrange: WeightKg must be a whole, non-negative number from a numeric input.
+    values = {"CargoName": "Pallets", "WeightKg": quantity, "ValueEUR": 100}
+
+    # Act
+    problems = validate_record("cargos", values, FIELDS)
+
+    # Assert: booleans and numeric strings are not numbers, and 2.5 kg is not a whole number.
+    assert problems, f"{quantity!r} was accepted as a cargo weight"
+
+
+def test_zero_weight_is_the_allowed_boundary():
+    # Arrange: 0 is the edge between valid (>= 0) and negative values.
+    values = {"CargoName": "Empty container", "WeightKg": 0, "ValueEUR": 0}
+
+    # Act
+    problems = validate_record("cargos", values, FIELDS)
+
+    # Assert
+    assert problems == []

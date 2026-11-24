@@ -36,6 +36,10 @@ def validate_record(
         if not nullable and kind == "text" and (value is None or not str(value).strip()):
             problems.append(f"{name} is required.")
         elif kind in ("int", "decimal") and value is not None:
+            # bool is a subclass of int and "3" converts with float(), but neither is a form number.
+            if isinstance(value, (bool, str)):
+                problems.append(f"{name} must be a number.")
+                continue
             try:
                 number = float(value)
             except (TypeError, ValueError):
