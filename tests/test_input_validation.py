@@ -31,6 +31,41 @@ def test_unknown_record_type_is_rejected():
     assert validate_record("secret_table", {}, FIELDS) == ["Unsupported record type."]
 
 
+def test_valid_brand_returns_cleaned_values_without_errors():
+    values = {"BrandName": "Volvo", "Country": "Sweden"}
+
+    assert validate_record("brands", values, FIELDS) == []
+    assert values == {"BrandName": "Volvo", "Country": "Sweden"}
+
+
+@pytest.mark.parametrize("title", ["", "   ", "\t  "])
+def test_blank_or_whitespace_brand_name_is_rejected(title):
+    problems = validate_record("brands", {"BrandName": title}, FIELDS)
+
+    assert "BrandName is required." in problems
+
+
+@pytest.mark.parametrize("quantity", [-1, -0.25])
+def test_negative_cargo_quantity_is_rejected(quantity):
+    values = {"CargoName": "Pallets", "WeightKg": quantity, "ValueEUR": 100}
+
+    assert "WeightKg cannot be negative." in validate_record("cargos", values, FIELDS)
+
+
+@pytest.mark.parametrize("quantity", ["many", object()])
+def test_invalid_cargo_quantity_types_are_rejected(quantity):
+    values = {"CargoName": "Pallets", "WeightKg": quantity, "ValueEUR": 100}
+
+    problems = validate_record("cargos", values, FIELDS)
+    assert "WeightKg must be a number." in problems
+
+
+def test_non_finite_cargo_quantity_is_rejected():
+    values = {"CargoName": "Pallets", "WeightKg": float("nan"), "ValueEUR": 100}
+
+    assert "WeightKg must be a finite number." in validate_record("cargos", values, FIELDS)
+
+
 def test_job_status_update_must_follow_allowed_workflow():
     values = {name: None for name, _, _ in FIELDS["jobs"]}
     values.update(Status="Completed")

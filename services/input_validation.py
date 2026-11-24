@@ -1,6 +1,7 @@
 """Validation for fleet record forms, kept independent of Streamlit."""
 from __future__ import annotations
 
+import math
 from typing import Any, Mapping
 
 from services.jobs import status_transition_problem
@@ -39,6 +40,9 @@ def validate_record(
                 number = float(value)
             except (TypeError, ValueError):
                 problems.append(f"{name} must be a number.")
+                continue
+            if not math.isfinite(number):
+                problems.append(f"{name} must be a finite number.")
                 continue
             if number < 0:
                 problems.append(f"{name} cannot be negative.")
