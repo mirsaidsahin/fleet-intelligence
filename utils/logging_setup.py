@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Iterable
 
 from utils.config import PROJECT_ROOT
 

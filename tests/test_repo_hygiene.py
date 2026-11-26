@@ -13,7 +13,7 @@ def test_ets2_asset_folders_are_git_ignored_except_markers():
 
 
 def test_no_credentials_are_hardcoded_in_source():
-    literal = re.compile(r"""password\s*=\s*["']""", re.I)
+    literal = re.compile(r"""password\s*=\s*["']""", re.IGNORECASE)
     for path in ROOT.rglob("*.py"):
         if "tests" in path.parts or ".venv" in path.parts:
             continue

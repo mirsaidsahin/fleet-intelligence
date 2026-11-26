@@ -117,3 +117,44 @@ def test_linked_record_impact_counts_cover_all_entity_references(table, children
     assert result == children
     assert len(db.queries) == len(children)
     assert all(params == {"record_id": 23} for _, params in db.queries)
+
+
+# Week 5 session 2: tests that protect the record-list behaviour before refactoring it.
+
+class FakeReadDatabase:
+    def __init__(self):
+        self.queries = []
+
+    def fetch_all(self, sql, params=None):
+        self.queries.append((sql, params))
+        return []
+
+
+def test_record_list_is_capped_at_500_rows_by_default():
+    # Arrange
+    db = FakeReadDatabase()
+
+    # Act
+    FleetRepository(db).rows("trucks")
+
+    # Assert: the cap is a bound parameter, not text in the SQL.
+    sql, params = db.queries[0]
+    assert sql == "SELECT * FROM trucks ORDER BY TruckID DESC LIMIT :limit"
+    assert params == {"limit": 500}
+
+
+def test_record_list_accepts_a_smaller_limit():
+    db = FakeReadDatabase()
+
+    FleetRepository(db).rows("drivers", limit=10)
+
+    assert db.queries[0][1] == {"limit": 10}
+
+
+def test_record_list_rejects_unknown_table_before_querying():
+    db = FakeReadDatabase()
+
+    with pytest.raises(ValueError):
+        FleetRepository(db).rows("users; DROP TABLE trucks")
+
+    assert db.queries == []

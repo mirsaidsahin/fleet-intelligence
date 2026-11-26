@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from services.jobs import status_transition_problem
-
 
 FIELDS = {
     # Each field maps to (database column, validation kind, nullable) metadata.

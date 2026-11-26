@@ -3,6 +3,7 @@ from contextlib import contextmanager
 
 import pytest
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import IntegrityError
 
 from repositories.fleet import FleetRepository
 
@@ -60,7 +61,7 @@ def test_delete_keeps_foreign_key_rejection_as_final_safety(sqlite_repo):
 
     assert sqlite_repo.linked_record_counts("brands", 1)["trucks"] == 1
     # UI disables the action; the real DB constraint still protects direct writes.
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         sqlite_repo.delete("brands", 1)
 
 

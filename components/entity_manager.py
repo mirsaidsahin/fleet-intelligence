@@ -8,7 +8,7 @@ import streamlit as st
 
 from components.image_panel import image_panel
 from components.ui import search_frame
-from repositories.fleet import FleetRepository
+from repositories.fleet import MAX_RECORDS_SHOWN, FleetRepository
 from services.input_validation import FIELDS, validate_record
 from utils.db import DatabaseUnavailableError, QueryError
 
@@ -49,7 +49,7 @@ def _read_form(repo: FleetRepository, table: str, current: dict | None) -> dict:
             # Keep ids as stored values while showing human-readable labels.
             labels = {int(row["id"]): _label(kind, row) for row in options}
             index = choices.index(value) if value in choices else 0
-            values[name] = st.selectbox(label, choices, index=index, format_func=lambda x: "None" if x is None else labels.get(x, str(x)), key=f"form_{table}_{name}")
+            values[name] = st.selectbox(label, choices, index=index, format_func=lambda x, labels=labels: "None" if x is None else labels.get(x, str(x)), key=f"form_{table}_{name}")
         elif kind in CHOICES:
             choices = CHOICES[kind]
             values[name] = st.selectbox(label, choices, index=choices.index(value) if value in choices else 0, key=f"form_{table}_{name}")
@@ -116,7 +116,7 @@ def entity_manager(database, table: str, title: str) -> None:
             search = st.text_input("Search records", key=f"search_{table}", placeholder="Search any visible value")
             # Search every visible column without changing the stored rows.
             frame = search_frame(pd.DataFrame(rows), search)
-            st.caption(f"{len(frame)} record(s) shown · maximum 500")
+            st.caption(f"{len(frame)} record(s) shown · maximum {MAX_RECORDS_SHOWN}")
             st.dataframe(frame, hide_index=True, width="stretch")
             if table in IMAGE_TABLES:
                 image_panel(database, table, rows, key_col)
@@ -174,5 +174,5 @@ def entity_manager(database, table: str, title: str) -> None:
                         st.error(str(exc))
     except (QueryError, DatabaseUnavailableError) as exc:
         st.error(str(exc))
-    except Exception:
+    except Exception:  # noqa: BLE001 - UI boundary: show a safe message, details go to the log
         st.error("Could not load records. Check the application log for details.")

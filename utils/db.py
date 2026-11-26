@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterator, Mapping
+from typing import Any
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
@@ -46,7 +47,7 @@ class Database:
         self._engine = engine
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "Database":
+    def from_settings(cls, settings: Settings) -> Database:
         engine = create_engine(
             settings.sqlalchemy_url(),
             pool_size=DB_POOL_SIZE,
@@ -81,7 +82,7 @@ class Database:
             version = ".".join(str(part) for part in info) if info else None
             return ConnectionStatus(True, datetime.now().astimezone(), latency, version, database)
         except Exception as exc:  # boundary: a failed check is a result, not a crash
-            logger.error("Connection check failed: %s", exc, exc_info=True)
+            logger.exception("Connection check failed")
             return ConnectionStatus(False, datetime.now().astimezone(), error=describe_db_error(exc))
 
     def fetch_all(self, sql: str, params: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -111,6 +112,6 @@ class Database:
     @staticmethod
     def _wrap(exc: SQLAlchemyError) -> Exception:
         """Log the driver detail and return a user-safe application exception."""
-        logger.error("Database error: %s", exc, exc_info=True)
+        logger.error("Database error: %s", exc, exc_info=exc)
         message = describe_db_error(exc)
         return DatabaseUnavailableError(message) if is_connection_error(exc) else QueryError(message)

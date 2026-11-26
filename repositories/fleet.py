@@ -1,19 +1,23 @@
 """Parameterized, allow-listed SQL access for the fleet domain."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any, ClassVar
 
 from sqlalchemy import text
 
 from services.jobs import OPEN_STATUSES, OpenJob, classify, find_assignment_conflicts
+
+# Most rows one record table shows; keeps pages fast on large tables.
+MAX_RECORDS_SHOWN = 500
 
 
 class FleetRepository:
     """Read and write allow-listed fleet tables using parameterized values."""
 
     # Column names are fixed here; user input is used only for bound values.
-    TABLES = {
+    TABLES: ClassVar[dict[str, tuple[str, ...]]] = {
         "brands": ("BrandID", "BrandName", "Country"),
         "customers": ("CustomerID", "CompanyName", "ContactPerson", "Phone", "Address"),
         "garages": ("GarageID", "City", "Capacity"),
@@ -33,7 +37,7 @@ class FleetRepository:
     def __init__(self, database: Any) -> None:
         self.db = database
 
-    def rows(self, table: str, limit: int = 500) -> list[dict[str, Any]]:
+    def rows(self, table: str, limit: int = MAX_RECORDS_SHOWN) -> list[dict[str, Any]]:
         """Fetch recent rows from one supported table."""
         key = self._key(table)
         return self.db.fetch_all(f"SELECT * FROM {table} ORDER BY {key} DESC LIMIT :limit", {"limit": limit})

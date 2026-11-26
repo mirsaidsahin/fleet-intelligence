@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import re
 
-_COMMENTS = re.compile(r"(--[^\n]*|#[^\n]*|/\*.*?\*/)", re.S)
+_COMMENTS = re.compile(r"(--[^\n]*|#[^\n]*|/\*.*?\*/)", re.DOTALL)
 # Keep the accepted query starts explicit so write statements fail closed.
 _ALLOWED_FIRST = {"SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"}
 _FORBIDDEN = re.compile(
-    r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|RENAME)\b", re.I
+    r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|RENAME)\b", re.IGNORECASE
 )
 
 

@@ -4,11 +4,11 @@ import pytest
 
 from services.jobs import (
     OpenJob,
-    OperationalStatus as S,
     classify,
     find_assignment_conflicts,
     status_transition_problem,
 )
+from services.jobs import OperationalStatus as S
 
 NOW = datetime(2026, 10, 29, 12, 0)
 

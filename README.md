@@ -60,6 +60,13 @@ error mapping, SQL safety, fleet status rules, image handling, CRUD behavior for
 entities, SQLite repository integration, and Streamlit AppTest checks for delete safeguards.
 Tests use fakes or temporary in-memory databases and never read `.env` or contact production MySQL.
 
+**MySQL integration test (opt-in).** `tests/test_mysql_integration.py` inserts a brand through
+`FleetRepository`, reads it back and deletes it, on the separate `omnilogistics_test` database only.
+Create that database once with `database/create_test_database.sql` (structure only, no data), then run:
+`$env:RUN_MYSQL_TESTS = "1"; python -m pytest tests/test_mysql_integration.py -v`
+
+**Code quality.** Run `ruff check .` (linter) together with `python -m pytest`.
+
 ## Structure
 
 ```

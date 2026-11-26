@@ -9,10 +9,12 @@ Job status changes and assignment overlap checks follow the same open-job rules.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Iterable, Mapping, Sequence
+from itertools import pairwise
+from typing import Any
 
 
 class OperationalStatus(str, Enum):
@@ -66,7 +68,7 @@ def _has_conflict(jobs: list[OpenJob], now: datetime) -> bool:
         return True
     # Sort known windows so adjacent comparisons can detect any overlap.
     windows = sorted(w for w in (_window(j, now) for j in jobs) if w is not None)
-    return any(nxt_start < cur_end for (_, cur_end), (nxt_start, _) in zip(windows, windows[1:]))
+    return any(nxt_start < cur_end for (_, cur_end), (nxt_start, _) in pairwise(windows))
 
 
 def classify(open_jobs: Iterable[OpenJob], now: datetime) -> OperationalStatus:
